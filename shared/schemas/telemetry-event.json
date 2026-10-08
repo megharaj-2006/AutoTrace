@@ -1,67 +1,42 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://autotrace-sec.local/schemas/telemetry-event.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "TelemetryEvent",
-  "description": "Canonical service-to-service telemetry event contract emitted by telemetry-collector and consumed by graph-engine.",
+  "description": "Canonical service-to-service communication event for AutoTrace",
   "type": "object",
-  "required": [
-    "trace_id",
-    "source_service",
-    "target_service",
-    "endpoint",
-    "method",
-    "status_code",
-    "latency_ms",
-    "payload_entropy",
-    "timestamp"
-  ],
   "properties": {
-    "trace_id": {
+    "traceId": {
       "type": "string",
-      "format": "uuid",
-      "description": "Unique UUIDv4 identifying the distributed call trace."
+      "description": "Unique identifier for the distributed trace"
     },
-    "source_service": {
+    "spanId": {
       "type": "string",
-      "minLength": 1,
-      "description": "Originating microservice name (e.g. gateway-service)."
+      "description": "Identifier for the specific span or hop"
     },
-    "target_service": {
+    "source": {
       "type": "string",
-      "minLength": 1,
-      "description": "Destination microservice name (e.g. order-service)."
+      "description": "Source service originating the communication"
     },
-    "endpoint": {
+    "target": {
       "type": "string",
-      "description": "Destination HTTP path/endpoint (e.g. /process, /exploit/lateral)."
-    },
-    "method": {
-      "type": "string",
-      "enum": ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"],
-      "description": "HTTP request method."
-    },
-    "status_code": {
-      "type": "integer",
-      "minimum": 100,
-      "maximum": 599,
-      "description": "HTTP response status code."
-    },
-    "latency_ms": {
-      "type": "number",
-      "minimum": 0,
-      "description": "Observed execution latency in milliseconds."
-    },
-    "payload_entropy": {
-      "type": "number",
-      "minimum": 0.0,
-      "maximum": 8.0,
-      "description": "Shannon entropy score of the request payload (0.0 to 8.0)."
+      "description": "Target service receiving the communication"
     },
     "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 timestamp of the communication event"
+    },
+    "httpStatus": {
       "type": "integer",
-      "minimum": 0,
-      "description": "Epoch timestamp in milliseconds when the event was recorded."
+      "description": "HTTP status code of the response"
+    },
+    "latencyMs": {
+      "type": "number",
+      "description": "Latency of the call in milliseconds"
+    },
+    "protocol": {
+      "type": "string",
+      "description": "Communication protocol (e.g., HTTP, gRPC)"
     }
   },
-  "additionalProperties": false
+  "required": ["source", "target", "timestamp"]
 }
