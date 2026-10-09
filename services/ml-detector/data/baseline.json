@@ -1,28 +1,28 @@
 {
   "nodes": [
+    "external-client",
     "gateway-service",
     "order-service",
-    "payment-vault",
-    "reviews-service"
+    "payment-vault"
   ],
   "counts": [
     [
       0,
-      1996,
-      0,
-      1472
-    ],
-    [
-      0,
-      0,
-      1064,
-      468
-    ],
-    [
-      0,
-      0,
+      200,
       0,
       0
+    ],
+    [
+      0,
+      0,
+      200,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      200
     ],
     [
       0,
@@ -32,39 +32,30 @@
     ]
   ],
   "stats": {
-    "order-service->payment-vault": {
-      "count": 1064,
-      "lat_med": 41.62910076678115,
-      "lat_mad": 7.254509100367686,
-      "ent_med": 4.918043758614422,
-      "ent_mad": 0.2225132697834373,
-      "err_rate": 0.0018796992481203006
-    },
-    "order-service->reviews-service": {
-      "count": 468,
-      "lat_med": 11.168700498227256,
-      "lat_mad": 1.9260523401616834,
-      "ent_med": 4.500710437433103,
-      "ent_mad": 0.2128975977972633,
-      "err_rate": 0.004273504273504274
+    "external-client->gateway-service": {
+      "windows": 200,
+      "lat_med": 46.19478959731882,
+      "lat_mad": 4.120642113446144,
+      "ent_med": 0.0,
+      "ent_mad": 0.0,
+      "err_rate": 0.001
     },
     "gateway-service->order-service": {
-      "count": 1996,
-      "lat_med": 28.1648995186331,
-      "lat_mad": 4.945350131165701,
-      "ent_med": 4.2970230348678236,
-      "ent_mad": 0.21928966948379625,
-      "err_rate": 0.0045090180360721445
+      "windows": 200,
+      "lat_med": 31.357278353352175,
+      "lat_mad": 3.080956135876739,
+      "ent_med": 0.0,
+      "ent_mad": 0.0,
+      "err_rate": 0.006000000000000001
     },
-    "gateway-service->reviews-service": {
-      "count": 1472,
-      "lat_med": 13.924111827867627,
-      "lat_mad": 2.4689501340887148,
-      "ent_med": 4.600909779066423,
-      "ent_mad": 0.2202154910654601,
-      "err_rate": 0.004755434782608696
+    "order-service->payment-vault": {
+      "windows": 200,
+      "lat_med": 16.20576946669729,
+      "lat_mad": 1.9013806551421102,
+      "ent_med": 0.0,
+      "ent_mad": 0.0,
+      "err_rate": 0.005
     }
   },
-  "total_observations": 5000,
-  "min_edge_support": 30
+  "total_windows": 600
 }
