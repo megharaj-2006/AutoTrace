@@ -1,0 +1,61 @@
+{
+  "nodes": [
+    "external-client",
+    "gateway-service",
+    "order-service",
+    "payment-vault"
+  ],
+  "counts": [
+    [
+      0,
+      200,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      200,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      200
+    ],
+    [
+      0,
+      0,
+      0,
+      0
+    ]
+  ],
+  "stats": {
+    "external-client->gateway-service": {
+      "windows": 200,
+      "lat_med": 46.19478959731882,
+      "lat_mad": 4.120642113446144,
+      "ent_med": 0.0,
+      "ent_mad": 0.0,
+      "err_rate": 0.001
+    },
+    "gateway-service->order-service": {
+      "windows": 200,
+      "lat_med": 31.357278353352175,
+      "lat_mad": 3.080956135876739,
+      "ent_med": 0.0,
+      "ent_mad": 0.0,
+      "err_rate": 0.006000000000000001
+    },
+    "order-service->payment-vault": {
+      "windows": 200,
+      "lat_med": 16.20576946669729,
+      "lat_mad": 1.9013806551421102,
+      "ent_med": 0.0,
+      "ent_mad": 0.0,
+      "err_rate": 0.005
+    }
+  },
+  "total_windows": 600
+}
