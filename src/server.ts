@@ -19,7 +19,9 @@ app.post('/api/telemetry', (req: Request, res: Response) => {
 
     const results = [];
     for (const evt of events) {
-      if (!evt.source || !evt.target) {
+      const srcNode = evt.source_service || evt.source;
+      const dstNode = evt.target_service || evt.target;
+      if (!srcNode || !dstNode) {
         return res.status(400).json({
           error: 'Invalid telemetry event: source and target are required.',
           received: evt
@@ -27,7 +29,7 @@ app.post('/api/telemetry', (req: Request, res: Response) => {
       }
       const outcome = graphBuilder.processTelemetry(evt);
       results.push({
-        event: `${evt.source} -> ${evt.target}`,
+        event: `${srcNode} -> ${dstNode}`,
         outcome
       });
     }

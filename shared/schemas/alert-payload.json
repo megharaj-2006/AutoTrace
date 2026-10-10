@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://autotrace-sec.local/schemas/alert-payload.json",
+  "title": "AlertPayload",
+  "description": "Canonical threat and anomaly alert payload contract emitted upon detection and consumed by actuator-security and web-dashboard.",
+  "type": "object",
+  "required": [
+    "alert_id",
+    "timestamp",
+    "source_service",
+    "target_service",
+    "anomaly_type",
+    "severity",
+    "details"
+  ],
+  "properties": {
+    "alert_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique UUID identifying the detection alert."
+    },
+    "timestamp": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Epoch timestamp in milliseconds when the alert was triggered."
+    },
+    "source_service": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Originating microservice of the anomalous edge."
+    },
+    "target_service": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Destination microservice of the anomalous edge."
+    },
+    "anomaly_type": {
+      "type": "string",
+      "enum": ["ROGUE_EDGE", "ENTROPY_ANOMALY", "DEGRADED", "NONE"],
+      "description": "Classification of the detected anomaly."
+    },
+    "severity": {
+      "type": "string",
+      "enum": ["CRITICAL", "MEDIUM", "LOW"],
+      "description": "Severity level of the threat or degradation."
+    },
+    "quarantine_target": {
+      "type": ["string", "null"],
+      "description": "Service identified for automated quarantine containment (typically source_service)."
+    },
+    "details": {
+      "type": "object",
+      "required": ["confidence", "reason"],
+      "properties": {
+        "confidence": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "description": "Confidence score of the ML inference detection."
+        },
+        "reason": {
+          "type": "string",
+          "description": "Human-readable explanation of the anomaly detection."
+        },
+        "components": {
+          "type": "object",
+          "description": "Optional breakdown of scoring feature components."
+        },
+        "inference_ms": {
+          "type": "number",
+          "description": "Execution latency of ML inference in milliseconds."
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}

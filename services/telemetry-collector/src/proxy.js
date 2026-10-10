@@ -100,7 +100,7 @@ function createProxyApp(collector) {
     const startTime = Date.now();
     const entropy = calculateShannonEntropy(req.rawBody);
     const traceId = req.headers['x-trace-id'] || uuidv4();
-    const sourceService = req.headers['x-source-service'] || req.headers['x-autotrace-parent'] || 'external-client';
+    const sourceService = req.headers['x-source-service'] || req.headers['x-autotrace-parent'] || req.headers['x-exploit-origin'] || 'external-client';
 
     const proxy = createProxyMiddleware({
       target: targetUrl,

@@ -295,7 +295,7 @@ docker compose -f infra/docker-compose.yml up -d redpanda redis
 docker compose -f infra/docker-compose.testbed.yml up -d
 
 # Start the continuous legitimate traffic generator
-./testbed/cluster-simulation/traffic-generator.sh http://localhost:5001/process
+./testbed/cluster-simulation/traffic-generator.sh http://localhost:5000/process
 
 # Run Spring Boot Graph Engine locally on host port 8080
 cd services/graph-engine

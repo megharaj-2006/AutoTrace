@@ -70,6 +70,30 @@ services:
       retries: 3
       start_period: 5s
 
+  ml-detector:
+    build:
+      context: ../services/ml-detector
+      dockerfile: Dockerfile
+    container_name: ml-detector
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+      - ML_ANOMALY_THRESHOLD=0.90
+      - ML_DEGRADED_THRESHOLD=0.35
+      - ML_MIN_EDGE_SUPPORT=30
+      - ML_RCA_EDGE_THRESHOLD=0.35
+      - ML_ALLOW_SYNTHETIC_BASELINE=false
+    networks:
+      - autotrace-mesh
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')\" || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
 networks:
   autotrace-mesh:
     name: autotrace-mesh

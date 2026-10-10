@@ -18,13 +18,17 @@ export class DependencyGraphBuilder {
     edgeAdded: boolean;
     edgeUpdated: boolean;
   } {
-    if (!event.source || !event.target) {
+    const rawSource = event.source_service || event.source;
+    const rawTarget = event.target_service || event.target;
+    if (!rawSource || !rawTarget) {
       throw new Error('Telemetry event must specify both source and target services.');
     }
 
-    const source = event.source.trim();
-    const target = event.target.trim();
+    const source = rawSource.trim();
+    const target = rawTarget.trim();
     const ts = this.formatTimestamp(event.timestamp);
+    const latency = event.latency_ms !== undefined ? event.latency_ms : event.latencyMs;
+    const status = event.status_code !== undefined ? event.status_code : event.httpStatus;
     const nodesAdded: string[] = [];
 
     // 1. Process Source Node
@@ -73,8 +77,8 @@ export class DependencyGraphBuilder {
         callCount: 1,
         firstSeen: ts,
         lastSeen: ts,
-        avgLatencyMs: event.latencyMs,
-        lastHttpStatus: event.httpStatus
+        avgLatencyMs: latency,
+        lastHttpStatus: status
       };
       this.edges.set(edgeKey, newEdge);
       edgeAdded = true;
@@ -85,19 +89,19 @@ export class DependencyGraphBuilder {
       existingEdge.callCount += 1;
       existingEdge.lastSeen = ts;
 
-      if (event.latencyMs !== undefined) {
+      if (latency !== undefined) {
         if (existingEdge.avgLatencyMs !== undefined) {
           // Calculate cumulative moving average
           existingEdge.avgLatencyMs = Number(
-            ((existingEdge.avgLatencyMs * prevCount + event.latencyMs) / existingEdge.callCount).toFixed(2)
+            ((existingEdge.avgLatencyMs * prevCount + latency) / existingEdge.callCount).toFixed(2)
           );
         } else {
-          existingEdge.avgLatencyMs = event.latencyMs;
+          existingEdge.avgLatencyMs = latency;
         }
       }
 
-      if (event.httpStatus !== undefined) {
-        existingEdge.lastHttpStatus = event.httpStatus;
+      if (status !== undefined) {
+        existingEdge.lastHttpStatus = status;
       }
 
       edgeUpdated = true;
