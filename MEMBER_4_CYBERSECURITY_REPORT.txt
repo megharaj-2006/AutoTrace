@@ -1,0 +1,361 @@
+================================================================================
+AUTOTRACE-SEC: MEMBER 4 CYBERSECURITY & CONTAINMENT IMPLEMENTATION REPORT
+================================================================================
+
+PROJECT: AutoTrace / AutoTrace-Sec
+ROLE: Member 4 — Cybersecurity & Containment Engineer
+PRIMARY SPECIFICATIONS:
+  - Krishna cyber.pdf
+  - Phase 2 plan.pdf
+  - AGENTS.md (Central Architecture & Ownership Matrix)
+BASE BRANCH: develop
+ACTIVE BRANCH: cyber
+STATUS: Implementation & Automated Verification Complete (Ready for Review)
+
+================================================================================
+1. EXECUTIVE SUMMARY
+================================================================================
+
+All requirements for the Member 4 Cybersecurity & Containment Engineer assignment
+have been designed, implemented, hardened, and verified independently on the
+dedicated "cyber" branch.
+
+Key achievements:
+  1. Built the standalone Security Actuator daemon (FastAPI, Port 8081) with
+     autonomous Docker network containment, allowlists, input sanitization,
+     constant-time API key authentication, and timing measurements.
+  2. Implemented all 3 containment primitives:
+     - Mechanism A (Primary): Docker network disconnect via Docker SDK (no shell)
+     - Mechanism B (Firewall): In-container iptables egress DROP policy with multi-IP resolution
+     - Mechanism C (Kernel): eBPF cgroup egress socket drop filter
+  3. Implemented mTLS SPIFFE/SPIRE workload identity revocation hooks for zero-trust,
+     fully integrated into the containment and recovery lifecycle.
+  4. Hardened authorization boundaries: eliminated confused deputy bypass on container_id,
+     restricted release endpoint to allowlisted culprits and authorized networks only.
+  5. Implemented per-container mutex concurrency serialization and sliding-window rate limiting.
+  6. Added structured JSON forensic audit logging for security compliance and IEEE monitoring.
+  7. Upgraded the lateral movement attack demonstration script to execute a 4-step
+     verification sequence with definitive PASS, FAIL, or INCONCLUSIVE verdicts.
+  8. Implemented chaos-testing scripts for latency injection, bounded packet loss,
+     and cascading downstream failure simulation.
+  9. Created a 56-test automated test suite across 6 test modules with 100% pass rate
+     (56 passed, 0 failed) in 2.01 seconds.
+  10. Successfully validated real Docker quarantine and release against disposable containers
+     on `autotrace-sandbox-net`. Quarantine returned `CONTAINED` in 144.63 ms (measured latency),
+     Docker inspection confirmed network detachment, and release restored attachment.
+     Crucial scope note: only virtual bridge network detachment and reattachment were verified;
+     application-level traffic blocking was not tested. All four Odysseus containers and
+     `odysseus_default` remained completely isolated and untouched.
+  11. Respected strict directory ownership: zero modifications to teammates' code
+     (Member 1 telemetry, Member 2 graph engine, Member 3 ML detector) or the
+     frontend dashboard (apps/web-dashboard/).
+
+================================================================================
+2. GIT AND BRANCH STATUS
+================================================================================
+
+- Base Branch: develop
+- Active Branch: cyber (verified via `git branch --show-current`)
+- Working Tree: All new files are untracked or modified within Member 4 scope.
+- Git Safety: No automated git commit, git push, or git merge was performed.
+  All changes are staged locally awaiting manual review.
+
+================================================================================
+3. DIRECTORY OWNERSHIP MATRIX & BOUNDARIES
+================================================================================
+
+The 4-member repository matrix has been strictly followed:
+
+Directory                                  Owner     Status in this Work
+--------------------------------------------------------------------------------
+services/actuator-security/                Member 4  IMPLEMENTED (Core module)
+testbed/attacks/                           Member 4  IMPLEMENTED (Attack demo)
+testbed/chaos/                             Member 4  IMPLEMENTED (Chaos scripts)
+services/telemetry-collector/              Member 1  UNTOUCHED (Preserved)
+infra/                                     Member 1  UNTOUCHED (Preserved)
+testbed/cluster-simulation/                Member 1  UNTOUCHED (Preserved)
+services/graph-engine/                     Member 2  UNTOUCHED (Preserved)
+services/ml-detector/                      Member 3  UNTOUCHED (Preserved)
+apps/web-dashboard/                        Shared    UNTOUCHED (Preserved for future)
+
+================================================================================
+4. IMPLEMENTED DELIVERABLES & TECHNICAL SPECIFICATIONS
+================================================================================
+
+4.1 Security Actuator Daemon (services/actuator-security/ — Port 8081)
+--------------------------------------------------------------------------------
+- Framework: Python 3.11+ / FastAPI / Uvicorn.
+- Port: 8081 (frozen project assignment).
+- Core Modules:
+  * src/app.py:
+    FastAPI service with lifespan management, dependency injection, and endpoints:
+    - POST /api/v1/quarantine: Disconnects compromised container from autotrace-mesh.
+    - POST /api/v1/release: Authenticated recovery endpoint to reconnect container.
+    - GET /health: Liveness probe returning service status and Docker availability.
+    - GET /ready: Readiness probe (fails 503 if live mode without Docker).
+    - GET /api/v1/quarantine/status: Query active quarantined containers.
+  * src/containment.py:
+    Core ContainmentEngine using official Python Docker SDK (docker.from_env()):
+    - Zero subprocess shell execution, preventing command injection.
+    - 5-step containment sequence: duplicate check -> container existence check ->
+      network membership verification -> forced disconnect -> post-disconnection verification.
+    - Real-time performance timing (perf_counter_ns) evaluating <2000ms latency target.
+    - Thread-safe state tracking for idempotent quarantine calls.
+    - Safe Dry-Run mode enabled by default for offline developer workstation safety.
+  * src/models.py:
+    Pydantic schemas with strict validation:
+    - Regex pattern ^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$ on all container/service names.
+    - Automatic alias support (culprit/culprit_service, target/target_service).
+    - Auto-population of container_id from culprit_service if omitted.
+    - Typed outcome enums: CONTAINED, FAILED, DRY_RUN, ALREADY_CONTAINED, RELEASED.
+  * src/config.py:
+    Environment-driven configuration with safe defaults:
+    - ACTUATOR_ALLOWED_CULPRITS: reviews-service, order-service, gateway-service
+    - ACTUATOR_ALLOWED_TARGETS: payment-vault, order-service, gateway-service
+    - ACTUATOR_PROTECTED_SERVICES: redpanda, redis, telemetry-collector, graph-engine,
+      ml-detector, actuator-security, web-dashboard (hard block with HTTP 403)
+    - ACTUATOR_CONTAINMENT_TARGET_MS: 2000ms
+  * src/main.py: Entry point starting Uvicorn server on configured port.
+  * Dockerfile: python:3.11-slim container image with curl and iptables.
+  * pytest.ini: Pytest configuration with strict asyncio mode and fixture scopes.
+  * requirements.txt: Clean dependencies (fastapi, uvicorn, pydantic, docker, httpx, pytest).
+
+4.2 Network Containment Policies & PKI Hooks
+--------------------------------------------------------------------------------
+- Mechanism A (Docker Network Disconnect):
+  Implemented in src/containment.py via Docker SDK.
+- Mechanism B (Linux In-Container iptables):
+  policies/iptables_isolate.sh: Injects `iptables -I OUTPUT -d <target> -j DROP`
+  inside container namespace. Includes `./iptables_isolate.sh restore` routine.
+- Mechanism C (Kernel eBPF Socket Drop):
+  policies/socket_drop.bpf.c: eBPF cgroup_skb/egress hook dropping TCP packets
+  destined for protected port 5003 (payment-vault).
+- Zero-Trust PKI Identity Revocation:
+  pki/spiffe_revocation.py: SPIFFE/SPIRE workload identity revocation hook
+  invalidating SVIDs (spiffe://autotrace.local/ns/default/sa/<service>) upon quarantine.
+
+4.3 Lateral-Movement Exploit Demonstration (testbed/attacks/)
+--------------------------------------------------------------------------------
+- File: testbed/attacks/trigger_lateral_exploit.sh
+- Scenario: Simulated compromised reviews-service (5002) calls payment-vault:5003/process.
+- Automated 4-Step Verification Workflow:
+  Step 1: Pre-flight check verifying reviews-service (5002), payment-vault (5003),
+          and actuator (8081) are reachable.
+  Step 2: Baseline exploit request to POST /exploit/lateral. Confirms HTTP 200.
+  Step 3: Dispatches authenticated quarantine request to Actuator (8081).
+  Step 4: Retries exploit request. Confirms connection is blocked (HTTP 502/504/timeout).
+- Verdict Output:
+  * [✓] DEMONSTRATION PASSED (Exit 0): Unauthorized traversal succeeded before, blocked after.
+  * [!] DEMONSTRATION FAILED (Exit 1): Target still reachable after quarantine.
+  * [INCONCLUSIVE] (Exit 2): Prerequisites offline or baseline failed before quarantine.
+
+4.4 Chaos-Testing Scripts (testbed/chaos/)
+--------------------------------------------------------------------------------
+- testbed/chaos/inject_latency.sh:
+  Injects bounded compute delay (1-10000ms) down the gateway -> order -> payment-vault chain.
+- testbed/chaos/inject_packet_drop.sh:
+  Controlled packet drop simulation with automatic rollback cleanup trap (EXIT, INT, TERM)
+  and 60-second maximum duration bound.
+- testbed/chaos/simulate_downstream_failure.sh:
+  Triggers downstream timeouts (>5000ms) or rapid bursts to simulate leaf node exhaustion
+  for Member 3's Root Cause Analysis (GAT RCA) engine.
+
+4.5 Documentation Delivered
+--------------------------------------------------------------------------------
+- services/actuator-security/README.md: Complete actuator architecture & integration guide.
+- services/actuator-security/policies/README.md: Guide for Mechanisms A, B, and C.
+- services/actuator-security/pki/README.md: Zero-trust SPIFFE/SPIRE PKI revocation docs.
+- testbed/attacks/README.md: Attack simulation setup, workflow, and verdicts.
+- testbed/chaos/README.md: Chaos engineering safety bounds and usage guide.
+
+================================================================================
+5. AUTOMATED TEST RESULTS
+================================================================================
+
+Test Execution Environment:
+  Platform: Windows (CPython 3.12.10)
+  Test Runner: pytest 8.3.5
+  Location: services/actuator-security/tests/
+
+Test Results Summary:
+  Total Tests Run : 56
+  Passed          : 56
+  Failed          : 0
+  Skipped         : 0
+  Execution Time  : 2.01 seconds
+  Pass Rate       : 100%
+
+Test Suite Breakdown:
+1. tests/test_api.py (14 tests) -> ALL PASSED
+   - test_health_check_returns_healthy (PASSED)
+   - test_readiness_check_in_dry_run_mode (PASSED)
+   - test_missing_api_key_when_required (401 response - PASSED)
+   - test_invalid_api_key_rejected (403 response - PASSED)
+   - test_valid_api_key_accepted (mocked containment engine delegation - PASSED)
+   - test_missing_culprit_service_rejected (422 response - PASSED)
+   - test_command_injection_attempt_in_service_name_rejected (regex validation - PASSED)
+   - test_culprit_not_in_allowlist_rejected (400 response - PASSED)
+   - test_target_not_in_allowlist_rejected (400 response - PASSED)
+   - test_protected_service_cannot_be_quarantined (403 response - PASSED)
+   - test_successful_quarantine_in_dry_run_mode (PASSED)
+   - test_duplicate_quarantine_is_idempotent (ALREADY_CONTAINED response - PASSED)
+   - test_quarantine_status_tracking (PASSED)
+   - test_release_service (recovery to RELEASED - PASSED)
+
+2. tests/test_containment.py (10 tests) -> ALL PASSED
+   - test_dry_run_quarantine_records_state
+   - test_dry_run_duplicate_quarantine_is_idempotent
+   - test_dry_run_release_clears_state
+   - test_release_unquarantined_returns_failure
+   - test_successful_docker_containment (mocked Docker SDK disconnect)
+   - test_container_not_found (raises ContainerNotFoundError -> 404)
+   - test_network_not_found (raises NetworkNotFoundError -> 404)
+   - test_permission_denied (raises ContainmentPermissionError -> 403)
+   - test_verification_failure_raises_containment_error (500)
+   - test_docker_unavailable_raises_docker_unavailable_error (503)
+
+3. tests/test_hardening_regression.py (16 tests) -> ALL PASSED
+   - test_protected_container_id_with_valid_culprit_is_rejected (403)
+   - test_protected_container_id_redis_is_rejected (403)
+   - test_unauthorized_container_id_not_in_allowlist_is_rejected (400)
+   - test_release_protected_service_rejected (403)
+   - test_release_unauthorized_container_rejected (400)
+   - test_release_to_unauthorized_network_rejected (403)
+   - test_release_invalid_network_pattern_rejected (422)
+   - test_concurrent_quarantine_requests_are_serialized_and_idempotent (10 concurrent requests)
+   - test_quarantine_triggers_spiffe_revocation
+   - test_release_restores_spiffe_identity
+   - test_exceeding_rate_limit_returns_429
+   - test_release_action_label_is_network_restore
+   - test_release_missing_container_raises_container_not_found (404)
+   - test_release_missing_network_raises_network_not_found (404)
+   - test_audit_event_logging_structure (structured JSON forensic audit event)
+   - test_state_reconciliation_offline
+
+4. tests/test_attack_simulation.py (7 tests) -> ALL PASSED
+   - test_successful_containment_verdict_pass (200 -> 502)
+   - test_timeout_drop_verdict_pass (200 -> 504)
+   - test_connection_severed_verdict_pass (200 -> reset)
+   - test_containment_failed_verdict_fail (200 -> 200)
+   - test_actuator_rejection_verdict_fail
+   - test_pre_exploit_failure_verdict_inconclusive
+   - test_unreachable_prerequisite_verdict_inconclusive
+
+5. tests/test_chaos.py (6 tests) -> ALL PASSED
+   - test_latency_valid_bounds (1-10000ms)
+   - test_latency_exceeding_max_rejected
+   - test_latency_zero_or_negative_rejected
+   - test_packet_drop_valid_params
+   - test_packet_drop_unauthorized_container_rejected
+   - test_packet_drop_duration_bounds (1-60s)
+
+6. tests/test_pki.py (3 tests) -> ALL PASSED
+   - test_canonical_spiffe_id_generation
+   - test_simulated_revocation_records_state
+   - test_unrevoked_service_returns_false
+
+================================================================================
+6. ENVIRONMENT FINDINGS & TRUTHFUL REPORTING
+================================================================================
+
+- Host Environment: Docker Desktop (Engine v29.6.2, WSL2 Linux backend) is running.
+- Real Docker Containment Verification:
+  * Successfully verified real quarantine and release operations against disposable
+    containers on an isolated virtual bridge network (`autotrace-sandbox-net`).
+  * Measured quarantine latency: 144.63 ms (sub-2-second target <2000 ms achieved).
+  * Outcome: Quarantine returned `CONTAINED` (action: `NETWORK_ISOLATION`), and Docker
+    inspection verified that the container was disconnected from the virtual bridge.
+  * Reconnection Outcome: Release endpoint returned `RELEASED` (action: `NETWORK_RESTORE`),
+    and Docker inspection verified that network attachment was fully restored.
+  * Cleanup: All temporary sandbox resources (`sandbox-culprit-service`, `sandbox-target-service`,
+    and `autotrace-sandbox-net`) were safely deleted upon test completion.
+- Strict Scope & Truthful Delimitation:
+  * ONLY Docker virtual bridge network detachment and reattachment were verified.
+  * Application-level traffic blocking (e.g., HTTP payload drops or socket drops) was
+    NOT tested in this verification.
+- Defense-in-Depth & Odysseus Isolation:
+  * All four existing Odysseus containers (`odysseus-odysseus-1`, `odysseus-searxng-1`,
+    `odysseus-chromadb-1`, `odysseus-ntfy-1`) and `odysseus_default` remained completely
+    isolated and untouched throughout all tests.
+- Remaining Policy & Integration Limitations:
+  * Mechanism B (in-container iptables): Standalone script; requires `CAP_NET_ADMIN` in container;
+    not invoked by the actuator daemon.
+  * Mechanism C (eBPF socket drop): Standalone C source for `cgroup_skb/egress`; requires userspace
+    loader (BCC/libbpf) and Linux kernel with BTF; unverified against live traffic.
+  * Zero-Trust PKI (SPIFFE/SPIRE): Operates in simulated audit mode (`REVOKED_SIMULATED`);
+    live gRPC integration requires production SPIRE Server deployment.
+
+================================================================================
+7. EXACT REPRODUCTION COMMANDS
+================================================================================
+
+1. Run the test suite:
+   cd "c:\Cyber Project\services\actuator-security"
+   $env:PYTHONPATH="."
+   .\.venv\Scripts\python.exe -m pytest tests -v
+
+2. Start the Security Actuator service:
+   cd "c:\Cyber Project\services\actuator-security"
+   $env:PYTHONPATH="."
+   .\.venv\Scripts\python.exe -m src.main
+   (Service starts on http://localhost:8081, OpenAPI docs at /docs)
+
+3. Run the Lateral Exploit demonstration (requires Docker testbed running):
+   bash testbed/attacks/trigger_lateral_exploit.sh
+
+================================================================================
+8. LIST OF CREATED AND MODIFIED FILES
+================================================================================
+
+Created Files:
+  - services/actuator-security/Dockerfile
+  - services/actuator-security/README.md
+  - services/actuator-security/pytest.ini
+  - services/actuator-security/src/__init__.py
+  - services/actuator-security/src/app.py
+  - services/actuator-security/src/config.py
+  - services/actuator-security/src/containment.py
+  - services/actuator-security/src/main.py
+  - services/actuator-security/src/models.py
+  - services/actuator-security/policies/README.md
+  - services/actuator-security/policies/iptables_isolate.sh
+  - services/actuator-security/policies/socket_drop.bpf.c
+  - services/actuator-security/pki/__init__.py
+  - services/actuator-security/pki/README.md
+  - services/actuator-security/pki/spiffe_revocation.py
+  - services/actuator-security/tests/__init__.py
+  - services/actuator-security/tests/test_api.py
+  - services/actuator-security/tests/test_attack_simulation.py
+  - services/actuator-security/tests/test_chaos.py
+  - services/actuator-security/tests/test_containment.py
+  - services/actuator-security/tests/test_hardening_regression.py
+  - services/actuator-security/tests/test_pki.py
+  - testbed/attacks/README.md
+  - testbed/chaos/README.md
+  - testbed/chaos/inject_packet_drop.sh
+  - testbed/chaos/simulate_downstream_failure.sh
+  - MEMBER_4_CYBERSECURITY_REPORT.txt
+  - MEMBER_4_DETAILED_STATUS_PROBLEMS_SOLUTIONS_REPORT.txt
+
+Modified Files:
+  - services/actuator-security/requirements.txt (removed duplicate dependency)
+  - testbed/attacks/trigger_lateral_exploit.sh (added full 4-step verification)
+  - testbed/chaos/inject_latency.sh (added input validation, bounds, pre-requisites)
+
+================================================================================
+9. FUTURE INTEGRATION ROADMAP
+================================================================================
+
+When the other team members finish their modules, integration proceeds as follows:
+1. Member 2 (Graph Engine — 8080):
+   Connects to POST http://localhost:8081/api/v1/quarantine when edge anomaly
+   exceeds threshold (>0.90) from Member 3.
+2. Member 3 (ML Detector — 8000):
+   Flags rogue edge `reviews-service -> payment-vault` via /api/v1/score-edge.
+3. Frontend Dashboard (apps/web-dashboard/ — 3000):
+   - Wire Quarantine Status Banner polling GET /api/v1/quarantine/status.
+   - Display Containment Event Log (timeline of isolated services and execution times).
+   - Add UI buttons to trigger lateral movement and chaos tests from the cockpit.
+
+All work is preserved on the `cyber` branch awaiting your review and approval.
+================================================================================
