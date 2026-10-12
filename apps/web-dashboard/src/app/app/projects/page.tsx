@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { 
   Plus, 
   Layers, 
@@ -11,13 +12,14 @@ import {
   ShieldCheck, 
   Cpu, 
   Filter, 
-  Search,
-  CheckCircle2,
-  X,
-  Radio,
+  Search, 
+  CheckCircle2, 
+  X, 
+  Radio, 
   ExternalLink
 } from 'lucide-react';
 import { ConsoleHeader } from '@/components/console/ConsoleHeader';
+import { DeployWatchdogModal } from '@/components/projects/DeployWatchdogModal';
 
 interface ProjectItem {
   id: string;
@@ -68,9 +70,11 @@ const INITIAL_PROJECTS: ProjectItem[] = [
 ];
 
 export default function IndividualProjectsWorkspacePage() {
+  const router = useRouter();
   const [projects, setProjects] = useState<ProjectItem[]>(INITIAL_PROJECTS);
   const [searchQuery, setSearchQuery] = useState('');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [deployModalProject, setDeployModalProject] = useState<{ id: string; name: string } | null>(null);
 
   // New project modal form state
   const [newProject, setNewProject] = useState({
@@ -80,28 +84,93 @@ export default function IndividualProjectsWorkspacePage() {
     ports: '5000, 5001, 5002, 5003',
   });
 
-  const handleCreateProject = (e: React.FormEvent) => {
+  // Load projects from server API and localStorage with bidirectional sync
+  useEffect(() => {
+    let isMounted = true;
+    const loadProjects = async () => {
+      try {
+        const res = await fetch('/api/v1/projects');
+        if (res.ok) {
+          const data = await res.json();
+          if (isMounted && Array.isArray(data.projects) && data.projects.length > 0) {
+            setProjects(data.projects);
+            try {
+              localStorage.setItem('autotrace_custom_projects', JSON.stringify(data.projects));
+            } catch {}
+            return;
+          }
+        }
+      } catch {
+        // Network fallback
+      }
+
+      // LocalStorage fallback
+      try {
+        const stored = localStorage.getItem('autotrace_custom_projects');
+        if (stored && isMounted) {
+          const parsed: ProjectItem[] = JSON.parse(stored);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setProjects(parsed);
+          }
+        }
+      } catch {}
+    };
+
+    loadProjects();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const handleCreateProject = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newProject.name) return;
 
-    const created: ProjectItem = {
-      id: newProject.name.toLowerCase().replace(/\s+/g, '-'),
-      name: newProject.name,
+    let created: ProjectItem = {
+      id: newProject.name.toLowerCase().trim().replace(/[^a-z0-9_-]/g, '-'),
+      name: newProject.name.trim(),
       environment: newProject.environment,
-      nodesCount: Number(newProject.nodesCount) || 1,
+      nodesCount: 0,
       ports: newProject.ports,
-      throughputEventsPerSec: 350,
-      status: 'ACTIVE',
-      baselineStatus: 'A_base Initialized',
+      throughputEventsPerSec: 0,
+      status: 'STANDBY',
+      baselineStatus: 'Awaiting Watchdog Connection',
       lastAnomaly: 'None',
     };
 
-    setProjects([created, ...projects]);
+    try {
+      const res = await fetch('/api/v1/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newProject.name,
+          environment: newProject.environment,
+          ports: newProject.ports,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.project) {
+          created = data.project;
+        }
+      }
+    } catch (err) {
+      console.error('[CreateProject] Failed saving to server API:', err);
+    }
+
+    const updated = [created, ...projects.filter((p) => p.id !== created.id)];
+    setProjects(updated);
+
+    try {
+      localStorage.setItem('autotrace_custom_projects', JSON.stringify(updated));
+    } catch {}
+
     setIsCreateModalOpen(false);
+    setDeployModalProject({ id: created.id, name: created.name });
     setNewProject({
       name: '',
       environment: 'Docker Compose (autotrace-mesh)',
-      nodesCount: 4,
+      nodesCount: 0,
       ports: '5000, 5001, 5002, 5003',
     });
   };
@@ -146,7 +215,7 @@ export default function IndividualProjectsWorkspacePage() {
 
         {/* Global Metric Cards Row */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-          <div className="p-4 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0B0D13] shadow-sm">
+          <div className="p-4 rounded-xl border border-slate-200/80 dark:border-white/[0.08] bg-white/70 dark:bg-[#0B0D13]/85 backdrop-blur-xl shadow-sm dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)]">
             <span className="text-xs text-slate-500 dark:text-zinc-400 font-medium block mb-1">
               Active Monitored Projects
             </span>
@@ -159,7 +228,7 @@ export default function IndividualProjectsWorkspacePage() {
             </div>
           </div>
 
-          <div className="p-4 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0B0D13] shadow-sm">
+          <div className="p-4 rounded-xl border border-slate-200/80 dark:border-white/[0.08] bg-white/70 dark:bg-[#0B0D13]/85 backdrop-blur-xl shadow-sm dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)]">
             <span className="text-xs text-slate-500 dark:text-zinc-400 font-medium block mb-1">
               Watchdog Nodes Online
             </span>
@@ -172,7 +241,7 @@ export default function IndividualProjectsWorkspacePage() {
             </div>
           </div>
 
-          <div className="p-4 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0B0D13] shadow-sm">
+          <div className="p-4 rounded-xl border border-slate-200/80 dark:border-white/[0.08] bg-white/70 dark:bg-[#0B0D13]/85 backdrop-blur-xl shadow-sm dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)]">
             <span className="text-xs text-slate-500 dark:text-zinc-400 font-medium block mb-1">
               Aggregated Stream Ingress
             </span>
@@ -209,7 +278,7 @@ export default function IndividualProjectsWorkspacePage() {
           {filteredProjects.map((project) => (
             <div
               key={project.id}
-              className="rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0B0D13] p-6 flex flex-col justify-between hover:border-slate-300 dark:hover:border-zinc-700 transition-all shadow-sm group"
+              className="rounded-2xl border border-slate-200/80 dark:border-white/[0.08] bg-white/70 dark:bg-[#0B0D13]/85 backdrop-blur-xl p-5 sm:p-6 flex flex-col justify-between hover:border-slate-300 dark:hover:border-white/[0.16] transition-all duration-300 shadow-sm dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06),0_8px_32px_rgba(0,0,0,0.36)] group"
             >
               <div>
                 {/* Project Header */}
@@ -242,7 +311,7 @@ export default function IndividualProjectsWorkspacePage() {
                 </div>
 
                 {/* Micro Metric Highlights */}
-                <div className="grid grid-cols-2 gap-2 p-3 rounded-xl border border-slate-100 dark:border-zinc-800/80 bg-slate-50 dark:bg-zinc-950/80 text-xs mb-6">
+                <div className="grid grid-cols-2 gap-2 p-3 rounded-xl border border-slate-100 dark:border-white/[0.06] bg-slate-50 dark:bg-zinc-950/80 text-xs mb-6">
                   <div>
                     <span className="text-[11px] text-slate-400 dark:text-zinc-500 block">Nodes</span>
                     <span className="font-semibold text-slate-900 dark:text-white">
@@ -258,14 +327,16 @@ export default function IndividualProjectsWorkspacePage() {
                 </div>
               </div>
 
-              {/* Action Card Button */}
-              <Link
-                href={`/app/projects/${project.id}`}
-                className="w-full py-2.5 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 hover:bg-slate-100 dark:bg-zinc-900 dark:hover:bg-zinc-800/80 text-slate-900 dark:text-white text-xs font-semibold flex items-center justify-center gap-2 transition-colors shadow-sm"
-              >
-                <span>Launch Real-Time Console</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </Link>
+              {/* Action Card Buttons */}
+              <div className="flex items-center">
+                <Link
+                  href={`/app/projects/${project.id}`}
+                  className="w-full py-2.5 rounded-xl border border-slate-200 dark:border-white/[0.08] bg-slate-50 hover:bg-slate-100 dark:bg-zinc-900 dark:hover:bg-zinc-800/80 text-slate-900 dark:text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors shadow-sm group"
+                >
+                  <span>Launch Console</span>
+                  <ArrowRight className="w-3.5 h-3.5 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
+                </Link>
+              </div>
             </div>
           ))}
         </div>
@@ -273,7 +344,7 @@ export default function IndividualProjectsWorkspacePage() {
         {/* Modal: Create New Project */}
         {isCreateModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-100">
-            <div className="w-full max-w-md rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0B0D13] p-6 shadow-2xl">
+            <div className="w-full max-w-md rounded-2xl border border-slate-200 dark:border-white/[0.08] bg-white dark:bg-[#0B0D13]/95 backdrop-blur-2xl p-5 sm:p-6 shadow-2xl">
               <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-zinc-800 mb-4">
                 <div className="flex items-center gap-2">
                   <Plus className="w-4 h-4 text-sky-500" />
@@ -365,6 +436,17 @@ export default function IndividualProjectsWorkspacePage() {
               </form>
             </div>
           </div>
+        )}
+
+        {/* Modal: Deploy Watchdog Hub */}
+        {deployModalProject && (
+          <DeployWatchdogModal
+            isOpen={!!deployModalProject}
+            onClose={() => setDeployModalProject(null)}
+            projectId={deployModalProject.id}
+            projectName={deployModalProject.name}
+            onLaunchConsole={(id) => router.push(`/app/projects/${id}`)}
+          />
         )}
 
       </main>

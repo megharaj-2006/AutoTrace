@@ -23,10 +23,10 @@ export function BentoGrid() {
         </div>
 
         {/* Bento Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-full">
           
           {/* Card 1: eBPF Interception (Large span) */}
-          <div className="md:col-span-2 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white/70 dark:bg-[#0B0D13]/90 p-8 flex flex-col justify-between hover:border-slate-300 dark:hover:border-zinc-700 transition-all shadow-sm group">
+          <div className="md:col-span-2 rounded-2xl border border-slate-200 dark:border-white/[0.08] bg-white/80 dark:bg-[#0B0D13]/80 p-6 sm:p-8 flex flex-col justify-between hover:border-slate-300 dark:hover:border-sky-500/30 transition-all shadow-sm hover:shadow-xl dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_8px_32px_rgba(0,0,0,0.4)] backdrop-blur-xl group">
             <div>
               {/* Minimal Precision Vector Icon */}
               <div className="w-9 h-9 rounded-lg bg-slate-100 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 flex items-center justify-center text-slate-700 dark:text-zinc-200 mb-6 shadow-sm">
@@ -49,23 +49,23 @@ export function BentoGrid() {
             </div>
 
             {/* High-Grade Architectural Vector Schematic */}
-            <div className="rounded-xl border border-slate-200/80 dark:border-zinc-800/80 bg-slate-50/70 dark:bg-zinc-950/70 p-5">
+            <div className="rounded-xl border border-slate-200/80 dark:border-white/[0.08] bg-slate-50/70 dark:bg-zinc-950/70 p-4 sm:p-5 backdrop-blur-md">
               <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-200 dark:border-zinc-800 text-xs">
                 <span className="font-medium text-slate-600 dark:text-zinc-400">Kernel Ring Buffer Flow</span>
                 <span className="text-emerald-600 dark:text-emerald-400 font-semibold">Overhead &lt; 0.18%</span>
               </div>
               
-              {/* Clean Vector Architecture Graphic */}
-              <div className="grid grid-cols-3 gap-3 text-center text-xs">
-                <div className="p-3 rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+              {/* Clean Vector Architecture Graphic - Responsive 1 to 3 cols */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3 text-center text-xs">
+                <div className="p-3 rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/90 shadow-xs">
                   <div className="font-semibold text-slate-900 dark:text-white">Socket Layer</div>
                   <div className="text-[11px] text-slate-500 dark:text-zinc-400 mt-1">kprobe / sockops</div>
                 </div>
-                <div className="p-3 rounded-lg border border-sky-500/30 bg-sky-50/50 dark:bg-sky-500/10">
+                <div className="p-3 rounded-lg border border-sky-500/30 bg-sky-50/50 dark:bg-sky-500/10 shadow-xs">
                   <div className="font-semibold text-sky-700 dark:text-sky-300">BPF Ringbuf</div>
                   <div className="text-[11px] text-sky-600 dark:text-sky-400 mt-1">Lossless Queue</div>
                 </div>
-                <div className="p-3 rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+                <div className="p-3 rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/90 shadow-xs">
                   <div className="font-semibold text-slate-900 dark:text-white">Kafka Stream</div>
                   <div className="text-[11px] text-slate-500 dark:text-zinc-400 mt-1">Topic 9092</div>
                 </div>
@@ -74,7 +74,7 @@ export function BentoGrid() {
           </div>
 
           {/* Card 2: GAT Attention Mechanism */}
-          <div className="rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white/70 dark:bg-[#0B0D13]/90 p-8 flex flex-col justify-between hover:border-slate-300 dark:hover:border-zinc-700 transition-all shadow-sm">
+          <div className="rounded-2xl border border-slate-200 dark:border-white/[0.08] bg-white/80 dark:bg-[#0B0D13]/80 p-6 sm:p-8 flex flex-col justify-between hover:border-slate-300 dark:hover:border-sky-500/30 transition-all shadow-sm hover:shadow-xl dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_8px_32px_rgba(0,0,0,0.4)] backdrop-blur-xl">
             <div>
               <div className="w-9 h-9 rounded-lg bg-slate-100 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 flex items-center justify-center text-slate-700 dark:text-zinc-200 mb-6 shadow-sm">
                 <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -96,9 +96,9 @@ export function BentoGrid() {
               </p>
             </div>
 
-            <div className="rounded-xl border border-slate-200/80 dark:border-zinc-800/80 bg-slate-50/70 dark:bg-zinc-950/70 p-4">
+            <div className="rounded-xl border border-slate-200/80 dark:border-white/[0.08] bg-slate-50/70 dark:bg-zinc-950/70 p-4 backdrop-blur-md">
               <div className="text-xs font-medium text-slate-500 dark:text-zinc-400 mb-2">Attention Edge Formulation</div>
-              <div className="text-sm font-semibold text-slate-800 dark:text-zinc-200 py-1">
+              <div className="text-xs sm:text-sm font-semibold text-slate-800 dark:text-zinc-200 py-1 overflow-x-auto select-all">
                 α_ij = softmax( LeakyReLU( aᵀ · [ Wh_i ∥ Wh_j ] ) )
               </div>
               <div className="mt-2 text-xs text-sky-600 dark:text-sky-400 font-medium">
@@ -108,7 +108,7 @@ export function BentoGrid() {
           </div>
 
           {/* Card 3: Shannon Entropy Rogue Edge Gate */}
-          <div className="rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white/70 dark:bg-[#0B0D13]/90 p-8 flex flex-col justify-between hover:border-slate-300 dark:hover:border-zinc-700 transition-all shadow-sm">
+          <div className="rounded-2xl border border-slate-200 dark:border-white/[0.08] bg-white/80 dark:bg-[#0B0D13]/80 p-6 sm:p-8 flex flex-col justify-between hover:border-slate-300 dark:hover:border-sky-500/30 transition-all shadow-sm hover:shadow-xl dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_8px_32px_rgba(0,0,0,0.4)] backdrop-blur-xl">
             <div>
               <div className="w-9 h-9 rounded-lg bg-slate-100 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 flex items-center justify-center text-slate-700 dark:text-zinc-200 mb-6 shadow-sm">
                 <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -126,7 +126,7 @@ export function BentoGrid() {
               </p>
             </div>
 
-            <div className="rounded-xl border border-slate-200/80 dark:border-zinc-800/80 bg-slate-50/70 dark:bg-zinc-950/70 p-4">
+            <div className="rounded-xl border border-slate-200/80 dark:border-white/[0.08] bg-slate-50/70 dark:bg-zinc-950/70 p-4 backdrop-blur-md">
               <div className="flex justify-between items-center text-xs mb-2">
                 <span className="font-medium text-slate-500 dark:text-zinc-400">Degree Entropy</span>
                 <span className="font-semibold text-slate-800 dark:text-zinc-200">H(G) = 0.94 nats</span>
@@ -141,7 +141,7 @@ export function BentoGrid() {
           </div>
 
           {/* Card 4: Sub-Second Actuation */}
-          <div className="md:col-span-2 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white/70 dark:bg-[#0B0D13]/90 p-8 flex flex-col justify-between hover:border-slate-300 dark:hover:border-zinc-700 transition-all shadow-sm">
+          <div className="md:col-span-2 rounded-2xl border border-slate-200 dark:border-white/[0.08] bg-white/80 dark:bg-[#0B0D13]/80 p-6 sm:p-8 flex flex-col justify-between hover:border-slate-300 dark:hover:border-sky-500/30 transition-all shadow-sm hover:shadow-xl dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_8px_32px_rgba(0,0,0,0.4)] backdrop-blur-xl">
             <div>
               <div className="w-9 h-9 rounded-lg bg-slate-100 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 flex items-center justify-center text-slate-700 dark:text-zinc-200 mb-6 shadow-sm">
                 <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -159,16 +159,16 @@ export function BentoGrid() {
               </p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-              <div className="p-3.5 rounded-xl border border-slate-200/80 dark:border-zinc-800/80 bg-slate-50/70 dark:bg-zinc-950/70">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3 text-xs">
+              <div className="p-3.5 rounded-xl border border-slate-200/80 dark:border-white/[0.08] bg-slate-50/70 dark:bg-zinc-950/70 backdrop-blur-md">
                 <span className="text-[11px] text-slate-400 dark:text-zinc-500 block mb-1 font-medium">Detection-to-Drop</span>
                 <span className="text-base font-semibold text-emerald-600 dark:text-emerald-400">&lt; 350 ms</span>
               </div>
-              <div className="p-3.5 rounded-xl border border-slate-200/80 dark:border-zinc-800/80 bg-slate-50/70 dark:bg-zinc-950/70">
+              <div className="p-3.5 rounded-xl border border-slate-200/80 dark:border-white/[0.08] bg-slate-50/70 dark:bg-zinc-950/70 backdrop-blur-md">
                 <span className="text-[11px] text-slate-400 dark:text-zinc-500 block mb-1 font-medium">Collateral Impact</span>
                 <span className="text-base font-semibold text-slate-900 dark:text-white">0.0% Non-Affected</span>
               </div>
-              <div className="p-3.5 rounded-xl border border-slate-200/80 dark:border-zinc-800/80 bg-slate-50/70 dark:bg-zinc-950/70">
+              <div className="p-3.5 rounded-xl border border-slate-200/80 dark:border-white/[0.08] bg-slate-50/70 dark:bg-zinc-950/70 backdrop-blur-md">
                 <span className="text-[11px] text-slate-400 dark:text-zinc-500 block mb-1 font-medium">Enforcement Hook</span>
                 <span className="text-base font-semibold text-sky-600 dark:text-sky-400">BPF Socket Drop</span>
               </div>

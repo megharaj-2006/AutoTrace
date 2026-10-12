@@ -82,6 +82,31 @@ function createProxyApp(collector) {
   });
 
   /**
+   * Watchdog Heartbeat Endpoint:
+   * POST /api/v1/watchdog/heartbeat
+   * POST /api/v1/projects/:projectId/watchdog/heartbeat
+   */
+  const handleHeartbeat = (req, res) => {
+    try {
+      const payload = req.parsedBody || (req.rawBody && req.rawBody.length > 0 ? JSON.parse(req.rawBody.toString('utf8')) : {});
+      const projectId = req.params.projectId || payload.token || 'default';
+      const version = payload.version || 'v1.2.0';
+      console.log(`[Watchdog] Received heartbeat from project ${projectId} (agent ${version})`);
+      return res.status(200).json({
+        status: 'ACK',
+        projectId,
+        version,
+        timestamp: Date.now()
+      });
+    } catch (err) {
+      return res.status(400).json({ status: 'ERROR', message: err.message });
+    }
+  };
+
+  app.post('/api/v1/watchdog/heartbeat', handleHeartbeat);
+  app.post('/api/v1/projects/:projectId/watchdog/heartbeat', handleHeartbeat);
+
+  /**
    * Out-of-band Interceptor & Forwarder Middleware:
    * /proxy/:targetService/*
    * Or via header X-Target-URL / X-Target-Service

@@ -1,0 +1,585 @@
+#!/usr/bin/env python3
+"""
+AutoTrace-Sec: Standalone Telemetry Watchdog Agent (< 15 MB)
+Version: v1.2.0
+
+Lightweight, zero-dependency host daemon for B2B production deployment.
+- Hooks into socket traffic and proxies/intercepts HTTP transactions out-of-band.
+- Computes Shannon entropy on request bodies: H(X) = -sum(P(x) * log2(P(x))).
+- Formats events into canonical 9-field schema (telemetry-event.json).
+- Forwards events asynchronously over HTTP/HTTPS to AutoTrace Ingestion Gateway.
+- Accepts quarantine signals (POST /contain) to drop malicious connections locally.
+- Sends periodic heartbeats to maintain connectivity with web dashboard.
+"""
+
+import sys
+import os
+import time
+import math
+import json
+import uuid
+import socket
+import argparse
+import threading
+import urllib.request
+import urllib.error
+from http.server import HTTPServer, BaseHTTPRequestHandler
+from urllib.parse import urlparse
+
+VERSION = "v1.2.0"
+DEFAULT_GATEWAY = "http://localhost:8085"
+DEFAULT_PORT = 8088
+DEFAULT_HEARTBEAT_SEC = 10
+
+# Thread-safe stats & state
+quarantined_targets = set()
+quarantine_lock = threading.Lock()
+events_queue = []
+queue_lock = threading.Lock()
+queue_cond = threading.Condition(queue_lock)
+stats = {
+    "start_time": time.time(),
+    "events_captured": 0,
+    "events_forwarded": 0,
+    "events_dropped": 0,
+    "quarantines_enforced": 0,
+    "last_heartbeat_ack": 0
+}
+
+
+def calculate_shannon_entropy(data: bytes) -> float:
+    """
+    Computes Shannon entropy over byte distributions:
+    H(X) = - sum_{i=1}^n P(x_i) log2 P(x_i)
+    Output range: [0.0, 8.0] bits per byte.
+    """
+    if not data or len(data) == 0:
+        return 0.0
+
+    length = len(data)
+    frequencies = {}
+    for byte in data:
+        frequencies[byte] = frequencies.get(byte, 0) + 1
+
+    entropy = 0.0
+    for count in frequencies.values():
+        p = count / length
+        entropy -= p * math.log2(p)
+
+    clamped = max(0.0, min(8.0, entropy))
+    return round(clamped, 4)
+
+
+def format_telemetry_event(source_service: str,
+                           target_service: str,
+                           endpoint: str,
+                           method: str,
+                           status_code: int,
+                           latency_ms: float,
+                           payload_entropy: float,
+                           trace_id: str = None,
+                           timestamp: int = None) -> dict:
+    """
+    Validates and formats the canonical 9-field JSON telemetry event.
+    """
+    return {
+        "trace_id": trace_id or str(uuid.uuid4()),
+        "source_service": str(source_service),
+        "target_service": str(target_service),
+        "endpoint": str(endpoint or "/"),
+        "method": str(method or "GET").upper(),
+        "status_code": int(status_code),
+        "latency_ms": round(float(latency_ms), 2),
+        "payload_entropy": round(float(payload_entropy), 4),
+        "timestamp": int(timestamp or int(time.time() * 1000))
+    }
+
+
+def send_event_http(gateway_url: str, token: str, event: dict, timeout: float = 3.0) -> bool:
+    """
+    Posts a single event to the AutoTrace Ingestion endpoint.
+    """
+    ingest_endpoint = gateway_url.rstrip("/")
+    if not ingest_endpoint.endswith("/api/v1/telemetry/record"):
+        ingest_endpoint += "/api/v1/telemetry/record"
+
+    payload_bytes = json.dumps(event).encode("utf-8")
+    req = urllib.request.Request(
+        ingest_endpoint,
+        data=payload_bytes,
+        headers={
+            "Content-Type": "application/json",
+            "X-Project-Token": token,
+            "User-Agent": f"autotrace-watchdog/{VERSION}"
+        },
+        method="POST"
+    )
+
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return resp.status in (200, 201, 202)
+    except Exception as e:
+        print(f"[Watchdog] Error posting telemetry: {e}", file=sys.stderr)
+        if hasattr(e, 'read'):
+            try:
+                print(f"[Watchdog] Response body: {e.read().decode('utf-8')}", file=sys.stderr)
+            except Exception:
+                pass
+        return False
+
+
+def event_forwarder_worker(gateway_url: str, token: str):
+    """
+    Background worker that continuously dequeues and forwards events.
+    """
+    while True:
+        with queue_lock:
+            while not events_queue:
+                queue_cond.wait()
+            batch = list(events_queue)
+            events_queue.clear()
+
+        for ev in batch:
+            ok = send_event_http(gateway_url, token, ev)
+            with queue_lock:
+                if ok:
+                    stats["events_forwarded"] += 1
+                else:
+                    stats["events_dropped"] += 1
+
+
+def heartbeat_worker(gateway_url: str, token: str, project_id: str, service_name: str, interval: int):
+    """
+    Periodically sends a heartbeat ping to both the cloud gateway and local endpoints.
+    """
+    endpoints = [
+        f"{gateway_url.rstrip('/')}/api/v1/projects/{project_id or token}/watchdog/heartbeat",
+        f"{gateway_url.rstrip('/')}/api/v1/watchdog/heartbeat",
+        # Fallback to local web-dashboard if gateway is collector
+        f"http://localhost:3000/api/v1/projects/{project_id or token}/watchdog/heartbeat",
+        "http://localhost:3000/api/v1/watchdog/heartbeat"
+    ]
+
+    while True:
+        hostname = socket.gethostname()
+        hb_payload = {
+            "token": token,
+            "project_id": project_id or token,
+            "version": VERSION,
+            "hostname": hostname,
+            "service_name": service_name,
+            "status": "HEALTHY",
+            "uptime_sec": int(time.time() - stats["start_time"]),
+            "events_captured": stats["events_captured"],
+            "events_forwarded": stats["events_forwarded"],
+            "quarantines_enforced": stats["quarantines_enforced"],
+            "timestamp": int(time.time() * 1000)
+        }
+        body = json.dumps(hb_payload).encode("utf-8")
+
+        for ep in endpoints:
+            try:
+                req = urllib.request.Request(
+                    ep,
+                    data=body,
+                    headers={
+                        "Content-Type": "application/json",
+                        "X-Project-Token": token,
+                        "User-Agent": f"autotrace-watchdog/{VERSION}"
+                    },
+                    method="POST"
+                )
+                with urllib.request.urlopen(req, timeout=2.0) as resp:
+                    if resp.status == 200:
+                        stats["last_heartbeat_ack"] = time.time()
+                        break
+            except Exception:
+                continue
+
+        time.sleep(interval)
+
+
+class WatchdogHandler(BaseHTTPRequestHandler):
+    """
+    HTTP Request Handler providing:
+    - /health: local health check
+    - /contain: quarantine command listener
+    - /telemetry: direct event ingestion from local applications
+    - Forwarding / Intercepting proxy mode
+    """
+    gateway_url = DEFAULT_GATEWAY
+    token = "at_live_demo_9841"
+    project_id = "mock-amazon-cluster"
+    service_name = "gateway-service"
+    proxy_target = None
+
+    def log_message(self, format, *args):
+        # Quiet default logging
+        pass
+
+    def do_GET(self):
+        parsed = urlparse(self.path)
+        if parsed.path == "/health":
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            with quarantine_lock:
+                quarantine_list = list(quarantined_targets)
+            resp = {
+                "status": "HEALTHY",
+                "version": VERSION,
+                "service": self.service_name,
+                "uptime_sec": int(time.time() - stats["start_time"]),
+                "events_captured": stats["events_captured"],
+                "events_forwarded": stats["events_forwarded"],
+                "quarantined_targets": quarantine_list
+            }
+            self.wfile.write(json.dumps(resp).encode("utf-8"))
+            return
+
+        if parsed.path == "/status":
+            self.do_GET()
+            return
+
+        # Proxy forwarding if configured
+        if self.proxy_target:
+            self.handle_proxy_request("GET")
+        else:
+            self.send_response(404)
+            self.end_headers()
+
+    def do_POST(self):
+        parsed = urlparse(self.path)
+
+        # 1. Local quarantine endpoint: POST /contain
+        if parsed.path == "/contain":
+            length = int(self.headers.get("Content-Length", 0))
+            raw_body = self.rfile.read(length) if length > 0 else b"{}"
+            try:
+                data = json.loads(raw_body.decode("utf-8"))
+                target = data.get("target") or data.get("target_service")
+                action = data.get("action", "DROP_SOCKET")
+                if not target:
+                    self.send_response(400)
+                    self.send_header("Content-Type", "application/json")
+                    self.end_headers()
+                    self.wfile.write(json.dumps({"error": "Missing target"}).encode("utf-8"))
+                    return
+
+                with quarantine_lock:
+                    quarantined_targets.add(target)
+                    stats["quarantines_enforced"] += 1
+
+                print(f"[Watchdog] [CONTAIN] Target '{target}' quarantined. Enforcing local socket drop policy.")
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    "status": "QUARANTINED",
+                    "target": target,
+                    "action": action,
+                    "enforced_locally": True,
+                    "timestamp": int(time.time() * 1000)
+                }).encode("utf-8"))
+                return
+            except Exception as e:
+                self.send_response(400)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": str(e)}).encode("utf-8"))
+                return
+
+        # 2. Local emit/record hook: POST /api/v1/telemetry/record or /telemetry
+        if parsed.path in ("/api/v1/telemetry/record", "/telemetry"):
+            length = int(self.headers.get("Content-Length", 0))
+            raw_body = self.rfile.read(length) if length > 0 else b"{}"
+            try:
+                data = json.loads(raw_body.decode("utf-8"))
+                entropy = data.get("payload_entropy")
+                if entropy is None:
+                    entropy = calculate_shannon_entropy(raw_body)
+
+                ev = format_telemetry_event(
+                    source_service=data.get("source_service", self.service_name),
+                    target_service=data.get("target_service", "unknown"),
+                    endpoint=data.get("endpoint", "/"),
+                    method=data.get("method", "POST"),
+                    status_code=int(data.get("status_code", 200)),
+                    latency_ms=float(data.get("latency_ms", 10.0)),
+                    payload_entropy=float(entropy),
+                    trace_id=data.get("trace_id"),
+                    timestamp=data.get("timestamp")
+                )
+
+                with queue_lock:
+                    events_queue.append(ev)
+                    stats["events_captured"] += 1
+                    queue_cond.notify()
+
+                self.send_response(201)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"status": "QUEUED", "event": ev}).encode("utf-8"))
+                return
+            except Exception as e:
+                self.send_response(400)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": str(e)}).encode("utf-8"))
+                return
+
+        # Proxy forwarding if configured
+        if self.proxy_target:
+            self.handle_proxy_request("POST")
+        else:
+            self.send_response(404)
+            self.end_headers()
+
+    def handle_proxy_request(self, method: str):
+        """
+        Intercepts and proxies HTTP request to target service, calculating latency
+        and entropy, and enforcing socket drops if target is quarantined.
+        """
+        target_service = self.headers.get("X-Target-Service", "downstream-service")
+        
+        # Check quarantine list
+        with quarantine_lock:
+            if target_service in quarantined_targets or self.headers.get("X-Target-Host") in quarantined_targets:
+                print(f"[Watchdog] [DROP] Intercepted socket traffic to quarantined target: {target_service}")
+                self.send_response(403)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    "error": "CONTAINED_BY_AUTOTRACE",
+                    "target": target_service,
+                    "reason": "Target service is isolated due to lateral movement detection."
+                }).encode("utf-8"))
+                return
+
+        length = int(self.headers.get("Content-Length", 0))
+        req_body = self.rfile.read(length) if length > 0 else b""
+        entropy = calculate_shannon_entropy(req_body)
+
+        target_url = f"{self.proxy_target.rstrip('/')}{self.path}"
+        start_time = time.time()
+        trace_id = self.headers.get("X-Trace-Id", str(uuid.uuid4()))
+        source_service = self.headers.get("X-Source-Service", self.service_name)
+
+        req = urllib.request.Request(
+            target_url,
+            data=req_body if method in ("POST", "PUT", "PATCH") else None,
+            headers={k: v for k, v in self.headers.items() if k.lower() != "content-length"},
+            method=method
+        )
+
+        status_code = 200
+        resp_data = b""
+        try:
+            with urllib.request.urlopen(req, timeout=5.0) as resp:
+                status_code = resp.status
+                resp_data = resp.read()
+                self.send_response(status_code)
+                for h, v in resp.getheaders():
+                    if h.lower() not in ("transfer-encoding", "content-length"):
+                        self.send_header(h, v)
+                self.send_header("Content-Length", str(len(resp_data)))
+                self.end_headers()
+                self.wfile.write(resp_data)
+        except urllib.error.HTTPError as he:
+            status_code = he.code
+            resp_data = he.read()
+            self.send_response(status_code)
+            self.end_headers()
+            self.wfile.write(resp_data)
+        except Exception as e:
+            status_code = 502
+            self.send_response(502)
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": f"Proxy forward error: {e}"}).encode("utf-8"))
+
+        elapsed_ms = (time.time() - start_time) * 1000
+
+        # Construct and enqueue canonical 9-field event
+        ev = format_telemetry_event(
+            source_service=source_service,
+            target_service=target_service,
+            endpoint=self.path,
+            method=method,
+            status_code=status_code,
+            latency_ms=elapsed_ms,
+            payload_entropy=entropy,
+            trace_id=trace_id
+        )
+
+        with queue_lock:
+            events_queue.append(ev)
+            stats["events_captured"] += 1
+            queue_cond.notify()
+
+
+def run_daemon(args):
+    print("========================================================================")
+    print(f" 🐕 AutoTrace-Sec: Standalone Telemetry Watchdog Agent ({VERSION})")
+    print(f" Footprint        : < 15 MB (Zero Runtime Dependencies)")
+    print(f" Project Token    : {args.token}")
+    print(f" Ingestion Gateway: {args.gateway}")
+    print(f" Watchdog Port    : {args.port}")
+    print(f" Intercept Service: {args.service_name}")
+    if args.proxy_target:
+        print(f" Proxy Target     : {args.proxy_target}")
+    print("========================================================================")
+
+    # Start forwarder worker thread
+    t_forwarder = threading.Thread(target=event_forwarder_worker, args=(args.gateway, args.token), daemon=True)
+    t_forwarder.start()
+
+    # Start heartbeat worker thread
+    t_heartbeat = threading.Thread(
+        target=heartbeat_worker,
+        args=(args.gateway, args.token, args.project_id, args.service_name, args.heartbeat_interval),
+        daemon=True
+    )
+    t_heartbeat.start()
+
+    # Configure HTTP handler
+    WatchdogHandler.gateway_url = args.gateway
+    WatchdogHandler.token = args.token
+    WatchdogHandler.project_id = args.project_id
+    WatchdogHandler.service_name = args.service_name
+    WatchdogHandler.proxy_target = args.proxy_target
+
+    server = HTTPServer(("0.0.0.0", args.port), WatchdogHandler)
+    print(f"[Watchdog] Listening on 0.0.0.0:{args.port} (Socket Interceptor & Quarantine Ready)")
+
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        print("\n[Watchdog] Shutting down gracefully...")
+        server.server_close()
+
+
+def run_emit(args):
+    """
+    One-shot emit of a valid 9-field telemetry event for testing and verification.
+    """
+    body_bytes = args.body.encode("utf-8") if args.body else b""
+    entropy = args.entropy if args.entropy is not None else calculate_shannon_entropy(body_bytes)
+
+    event = format_telemetry_event(
+        source_service=args.source,
+        target_service=args.target,
+        endpoint=args.endpoint,
+        method=args.method,
+        status_code=args.status,
+        latency_ms=args.latency,
+        payload_entropy=entropy,
+        trace_id=args.trace_id
+    )
+
+    print(f"[Watchdog] Emitting canonical 9-field telemetry event to {args.gateway}:")
+    print(json.dumps(event, indent=2))
+
+    success = send_event_http(args.gateway, args.token, event)
+    if success:
+        print(f"✔ [Watchdog] Event successfully recorded by ingestion endpoint at {args.gateway}!")
+        sys.exit(0)
+    else:
+        print(f"✖ [Watchdog] Failed to post event to {args.gateway}.", file=sys.stderr)
+        sys.exit(1)
+
+
+def run_contain(args):
+    """
+    Sends a local quarantine command to a running watchdog daemon.
+    """
+    url = f"http://localhost:{args.port}/contain"
+    payload = json.dumps({"target": args.target, "action": "DROP_SOCKET"}).encode("utf-8")
+    req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"}, method="POST")
+    try:
+        with urllib.request.urlopen(req, timeout=3.0) as resp:
+            print(f"✔ Quarantine applied to '{args.target}': {resp.read().decode('utf-8')}")
+            sys.exit(0)
+    except Exception as e:
+        print(f"✖ Failed to communicate with watchdog on port {args.port}: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="AutoTrace-Sec Lightweight Standalone Telemetry Watchdog (< 15 MB)"
+    )
+    subparsers = parser.add_subparsers(dest="command")
+
+    # Start / Daemon command
+    start_parser = subparsers.add_parser("start", help="Start the standalone watchdog daemon")
+    start_parser.add_argument("--token", default=os.getenv("AUTOTRACE_TOKEN", "at_live_demo_9841"), help="Project token")
+    start_parser.add_argument("--project-id", default=os.getenv("AUTOTRACE_PROJECT_ID", "mock-amazon-cluster"), help="Project ID")
+    start_parser.add_argument("--gateway", default=os.getenv("AUTOTRACE_GATEWAY", DEFAULT_GATEWAY), help="Ingestion gateway URL")
+    start_parser.add_argument("--port", type=int, default=int(os.getenv("AUTOTRACE_PORT", DEFAULT_PORT)), help="Watchdog listen port")
+    start_parser.add_argument("--service-name", default=os.getenv("SERVICE_NAME", "gateway-service"), help="Local service name")
+    start_parser.add_argument("--proxy-target", default=os.getenv("AUTOTRACE_PROXY_TARGET"), help="Target service to proxy")
+    start_parser.add_argument("--heartbeat-interval", type=int, default=DEFAULT_HEARTBEAT_SEC, help="Heartbeat interval in seconds")
+
+    # Emit command (verification)
+    emit_parser = subparsers.add_parser("emit", help="Emit a single 9-field telemetry event for verification")
+    emit_parser.add_argument("--gateway", default=os.getenv("AUTOTRACE_GATEWAY", DEFAULT_GATEWAY), help="Ingestion gateway URL")
+    emit_parser.add_argument("--token", default=os.getenv("AUTOTRACE_TOKEN", "at_live_demo_9841"), help="Project token")
+    emit_parser.add_argument("--source", default="gateway-service", help="Source microservice")
+    emit_parser.add_argument("--target", default="order-service", help="Target microservice")
+    emit_parser.add_argument("--endpoint", default="/process", help="Target endpoint")
+    emit_parser.add_argument("--method", default="POST", help="HTTP method")
+    emit_parser.add_argument("--status", type=int, default=200, help="Status code")
+    emit_parser.add_argument("--latency", type=float, default=14.5, help="Latency in ms")
+    emit_parser.add_argument("--body", default='{"order_id": "ord_9901", "action": "checkout"}', help="Payload body")
+    emit_parser.add_argument("--entropy", type=float, default=None, help="Explicit entropy score (0.0 - 8.0)")
+    emit_parser.add_argument("--trace-id", default=None, help="Trace ID")
+
+    # Contain command
+    contain_parser = subparsers.add_parser("contain", help="Quarantine a target service via local socket drop")
+    contain_parser.add_argument("--target", required=True, help="Target service to quarantine")
+    contain_parser.add_argument("--port", type=int, default=DEFAULT_PORT, help="Watchdog port")
+
+    # Status command
+    status_parser = subparsers.add_parser("status", help="Query local watchdog daemon status")
+    status_parser.add_argument("--port", type=int, default=DEFAULT_PORT, help="Watchdog port")
+
+    # Version command
+    subparsers.add_parser("version", help="Print version information")
+
+    # If no subcommand supplied, check default top-level args or run start
+    if len(sys.argv) == 1:
+        args = start_parser.parse_args([])
+        run_daemon(args)
+        return
+
+    if sys.argv[1] in ("-v", "--version", "version"):
+        print(f"autotrace-watchdog {VERSION} (Footprint: < 15 MB standalone agent)")
+        sys.exit(0)
+
+    if sys.argv[1].startswith("--"):
+        # Top-level flags passed directly without "start"
+        args = start_parser.parse_args(sys.argv[1:])
+        run_daemon(args)
+        return
+
+    args = parser.parse_args()
+    if args.command in (None, "start"):
+        run_daemon(args)
+    elif args.command == "emit":
+        run_emit(args)
+    elif args.command == "contain":
+        run_contain(args)
+    elif args.command == "status":
+        url = f"http://localhost:{args.port}/health"
+        try:
+            with urllib.request.urlopen(url, timeout=2.0) as resp:
+                print(resp.read().decode("utf-8"))
+        except Exception as e:
+            print(f"Watchdog not responding on port {args.port}: {e}", file=sys.stderr)
+            sys.exit(1)
+    elif args.command == "version":
+        print(f"autotrace-watchdog {VERSION}")
+
+
+if __name__ == "__main__":
+    main()

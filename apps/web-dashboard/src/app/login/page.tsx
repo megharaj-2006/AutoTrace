@@ -11,17 +11,30 @@ import {
   Lock, 
   Key, 
   Terminal, 
-  Building2, 
-  Github, 
-  Globe 
+  Building2 
 } from 'lucide-react';
+import { SocialAuthButtons } from '@/components/auth/SocialAuthButtons';
+import { AutoTraceLogo } from '@/components/navigation/AutoTraceLogo';
 
 type LoginTab = 'individual' | 'team' | 'admin';
+
+function safeFormatError(err: string | null): string {
+  if (!err) return '';
+  if (err === 'auth_failed') {
+    return 'Authentication failed or was cancelled. Please try signing in again.';
+  }
+  try {
+    return decodeURIComponent(err);
+  } catch {
+    return err;
+  }
+}
 
 function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const initialTab = (searchParams.get('tab') as LoginTab) || 'individual';
+  const authError = searchParams.get('error');
 
   const [activeTab, setActiveTab] = useState<LoginTab>(
     ['individual', 'team', 'admin'].includes(initialTab) ? initialTab : 'individual'
@@ -74,6 +87,12 @@ function LoginContent() {
         
         {/* Header */}
         <div className="text-center mb-8">
+          <Link href="/" className="inline-flex items-center justify-center mb-4 group">
+            <div className="w-12 h-12 rounded-xl bg-slate-100 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 flex items-center justify-center text-slate-900 dark:text-white group-hover:scale-105 transition-transform shadow-sm">
+              <AutoTraceLogo className="w-6 h-6" />
+            </div>
+          </Link>
+          <br />
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium bg-slate-100 border border-slate-200 text-slate-700 dark:bg-zinc-950 dark:border-zinc-800 dark:text-zinc-300 dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.08)] mb-4 transition-colors">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
             <span>Secure Access Desk</span>
@@ -121,8 +140,19 @@ function LoginContent() {
         </div>
 
         {/* Login Card */}
-        <div className="rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0B0D13] p-8 shadow-xl">
+        <div className="rounded-2xl border border-slate-200/80 dark:border-white/[0.08] bg-white/70 dark:bg-[#0B0D13]/85 backdrop-blur-2xl p-6 sm:p-8 shadow-xl dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06),0_16px_40px_rgba(0,0,0,0.4)]">
           
+          {authError && (
+            <div className="mb-6 p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-xs text-rose-700 dark:text-rose-300 flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0"></span>
+              <span>
+                {authError === 'auth_failed'
+                  ? 'Authentication failed or was cancelled. Please try signing in again.'
+                  : `Authentication error: ${safeFormatError(authError)}`}
+              </span>
+            </div>
+          )}
+
           {/* TAB 1: INDIVIDUAL LOGIN */}
           {activeTab === 'individual' && (
             <div>
@@ -131,24 +161,9 @@ function LoginContent() {
                 <span>Individual Developer Workspace</span>
               </div>
 
-              {/* OAuth Buttons */}
-              <div className="grid grid-cols-2 gap-3 mb-5">
-                <button
-                  type="button"
-                  onClick={() => router.push('/app/projects')}
-                  className="flex items-center justify-center gap-2 py-2 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900 hover:bg-slate-100 dark:hover:bg-zinc-800 text-xs font-medium transition-colors"
-                >
-                  <Globe className="w-3.5 h-3.5 text-sky-500" />
-                  <span>Google</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => router.push('/app/projects')}
-                  className="flex items-center justify-center gap-2 py-2 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900 hover:bg-slate-100 dark:hover:bg-zinc-800 text-xs font-medium transition-colors"
-                >
-                  <Github className="w-3.5 h-3.5 text-slate-900 dark:text-white" />
-                  <span>GitHub</span>
-                </button>
+              {/* Social Authentication Buttons */}
+              <div className="mb-5">
+                <SocialAuthButtons nextUrl="/dashboard" />
               </div>
 
               <div className="relative my-4 flex items-center justify-center">

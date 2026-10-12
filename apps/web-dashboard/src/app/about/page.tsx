@@ -62,7 +62,7 @@ export default function AboutPage() {
 
         {/* Mission & Problem Statement */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-20">
-          <div className="p-8 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0B0D13]">
+          <div className="p-6 sm:p-8 rounded-2xl border border-slate-200/80 dark:border-white/[0.08] bg-white/70 dark:bg-[#0B0D13]/85 backdrop-blur-xl shadow-sm dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] scroll-reveal">
             <h2 className="text-xl font-semibold text-slate-900 dark:text-white mb-3">
               The Alert Fatigue Problem
             </h2>
@@ -74,7 +74,7 @@ export default function AboutPage() {
             </p>
           </div>
 
-          <div className="p-8 rounded-2xl border border-sky-500/30 bg-sky-50/20 dark:bg-sky-500/5">
+          <div className="p-6 sm:p-8 rounded-2xl border border-sky-500/30 bg-sky-50/20 dark:bg-sky-500/5 backdrop-blur-xl shadow-sm dark:shadow-[inset_0_1px_0_0_rgba(56,189,248,0.1)] scroll-reveal">
             <h2 className="text-xl font-semibold text-slate-900 dark:text-white mb-3">
               The Causal Graph Solution
             </h2>
@@ -102,9 +102,9 @@ export default function AboutPage() {
             {engineeringRoles.map((eng) => (
               <div
                 key={eng.role}
-                className="p-6 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0B0D13] shadow-sm"
+                className="p-5 sm:p-6 rounded-2xl border border-slate-200/80 dark:border-white/[0.08] bg-white/70 dark:bg-[#0B0D13]/85 backdrop-blur-xl shadow-sm dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] hover:border-slate-300 dark:hover:border-white/[0.16] transition-all duration-300 scroll-reveal"
               >
-                <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-zinc-800/80 mb-3 font-mono text-xs">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-white/[0.06] mb-3 font-mono text-xs flex-wrap gap-1">
                   <span className="font-bold text-sky-600 dark:text-sky-400">{eng.member}</span>
                   <span className="text-slate-400 dark:text-zinc-500">{eng.tech}</span>
                 </div>
@@ -120,7 +120,7 @@ export default function AboutPage() {
         </div>
 
         {/* IEEE Research Publication Reference */}
-        <div id="ieee" className="p-8 sm:p-10 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950 font-mono text-xs">
+        <div id="ieee" className="p-6 sm:p-10 rounded-2xl border border-slate-200/80 dark:border-white/[0.08] bg-slate-50/70 dark:bg-zinc-950/80 backdrop-blur-xl font-mono text-xs dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] scroll-reveal">
           <div className="flex items-center gap-2 text-sky-600 dark:text-sky-400 font-semibold mb-3">
             <FileText className="w-4 h-4" />
             <span>RESEARCH SPECIFICATION &amp; IEEE DRAFT</span>
@@ -131,11 +131,11 @@ export default function AboutPage() {
           <p className="text-xs text-slate-600 dark:text-zinc-400 font-sans leading-relaxed mb-6">
             Presents empirical evaluation across an injected e-commerce microservice cluster with SSRF lateral movement, rogue RPC link creation, and stress testing. Demonstrates &gt;97.8% root-cause accuracy and &lt;350ms median containment latency without service disruption.
           </p>
-          <div className="flex flex-wrap items-center gap-4 text-[11px]">
-            <span className="px-2.5 py-1 rounded bg-slate-200 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300">
+          <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-[11px]">
+            <span className="px-2.5 py-1 rounded bg-slate-200/80 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300">
               Benchmark Dataset: Mock Amazon Cluster (5000-5003)
             </span>
-            <span className="px-2.5 py-1 rounded bg-slate-200 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300">
+            <span className="px-2.5 py-1 rounded bg-slate-200/80 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300">
               Reproducible via infra/docker-compose.testbed.yml
             </span>
           </div>

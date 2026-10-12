@@ -72,14 +72,11 @@ export default function OrgAdminFleetPage() {
     memberIdPrefix: '',
   });
 
-  const collectorScript = `# AutoTrace-Sec eBPF Collector Distribution Package
-# Generated for Organization: Acme Financial Cloud (SPOC Authority)
-docker run -d --name autotrace-collector \\
-  --privileged --network=autotrace-mesh \\
-  -e ORG_SPOC_TOKEN="atk_live_acme_849201f8" \\
-  -e PROJECT_ID="${selectedProjectForCollector}" \\
-  -e KAFKA_BROKERS="redpanda:9092" \\
-  autotrace/telemetry-collector:latest`;
+  const collectorScript = `# AutoTrace-Sec Telemetry Watchdog v1.2.0 (< 15 MB Standalone Agent)
+# Option A: 1-Line Zero-Dependency Host Installation:
+curl -sSL https://get.autotrace.io/watchdog.sh | sudo bash -s -- \\
+  --token="atk_live_acme_849201f8" \\
+  --gateway="http://localhost:8085"`;
 
   const handleCopyScript = () => {
     navigator.clipboard.writeText(collectorScript);
@@ -137,15 +134,15 @@ docker run -d --name autotrace-collector \\
         </div>
 
         {/* SECTION 1: Telemetry Collector Distribution Desk */}
-        <div className="rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0B0D13] p-6 lg:p-8 shadow-sm mb-8">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-zinc-800 mb-6">
+        <div className="rounded-2xl border border-slate-200/80 dark:border-white/[0.08] bg-white/70 dark:bg-[#0B0D13]/85 backdrop-blur-xl p-5 sm:p-6 lg:p-8 shadow-sm dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] mb-8 min-w-0 max-w-full">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-white/[0.06] mb-6">
             <div>
               <div className="flex items-center gap-2 text-sm font-semibold text-slate-900 dark:text-white">
                 <Download className="w-4 h-4 text-sky-500" />
-                <span>eBPF Telemetry Collector Distribution Package</span>
+                <span>Telemetry Watchdog Distribution Hub (&lt; 15 MB Agent)</span>
               </div>
               <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1">
-                As the organization administrator, you download and distribute this pre-configured collector container to the respective engineering teams.
+                As the organization administrator, deploy the zero-dependency Watchdog host daemon to monitored nodes via 1-line curl installer or direct binary archive.
               </p>
             </div>
 
@@ -163,29 +160,56 @@ docker run -d --name autotrace-collector \\
             </div>
           </div>
 
-          {/* Copyable Terminal Package Box */}
-          <div className="rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-900 p-4 text-slate-300 relative text-xs">
-            <div className="flex items-center justify-between pb-2 mb-3 border-b border-zinc-800 text-[11px] text-zinc-500">
-              <div className="flex items-center gap-1.5">
-                <Terminal className="w-3.5 h-3.5 text-sky-400" />
-                <span>BASH DEPLOYMENT SCRIPT (EMBEDDED SPOC TOKEN)</span>
-              </div>
-              <button
-                onClick={handleCopyScript}
-                className="flex items-center gap-1 text-zinc-400 hover:text-white transition-colors"
-              >
-                {copiedScript ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                <span>{copiedScript ? 'Copied' : 'Copy Command'}</span>
-              </button>
+          {/* Option A: Copyable Terminal Package Box */}
+          <div className="mb-4">
+            <div className="text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-2 flex items-center justify-between">
+              <span>Option A: Instant 1-Line Curl Installation</span>
+              <span className="text-[11px] text-emerald-500 font-medium">Zero Runtime Dependencies</span>
             </div>
-            <pre className="text-sky-400 leading-relaxed overflow-x-auto whitespace-pre font-normal">
-              {collectorScript}
-            </pre>
+            <div className="rounded-xl border border-slate-200/80 dark:border-white/[0.08] bg-slate-50 dark:bg-black/80 backdrop-blur-md p-4 text-slate-800 dark:text-slate-300 relative text-xs min-w-0 max-w-full overflow-x-auto">
+              <div className="flex items-center justify-between pb-2 mb-3 border-b border-slate-200 dark:border-zinc-800 text-[11px] text-slate-500 dark:text-zinc-500">
+                <div className="flex items-center gap-1.5">
+                  <Terminal className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
+                  <span>BASH HOST INSTALLER SCRIPT</span>
+                </div>
+                <button
+                  onClick={handleCopyScript}
+                  className="flex items-center gap-1 text-slate-500 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-white transition-colors"
+                >
+                  {copiedScript ? <Check className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                  <span>{copiedScript ? 'Copied' : 'Copy Command'}</span>
+                </button>
+              </div>
+              <pre className="text-sky-600 dark:text-sky-400 leading-relaxed overflow-x-auto whitespace-pre font-mono font-normal text-[11px] sm:text-xs">
+                {collectorScript}
+              </pre>
+            </div>
+          </div>
+
+          {/* Option B: Direct Download Binary */}
+          <div className="pt-3 border-t border-slate-100 dark:border-white/[0.06] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <div className="text-xs font-semibold text-slate-900 dark:text-white">
+                Option B: Direct Standalone Agent Download
+              </div>
+              <div className="text-[11px] text-slate-500 dark:text-zinc-400">
+                Supported: Linux x86_64 / ARM64, Kernel 5.4+ (eBPF &amp; Socket Interceptor)
+              </div>
+            </div>
+
+            <a
+              href={`/api/v1/projects/${selectedProjectForCollector}/watchdog/download`}
+              download
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-semibold text-xs transition-colors shadow-sm w-full sm:w-auto"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Download Watchdog Agent (.tar.gz) - 12.4 MB</span>
+            </a>
           </div>
         </div>
 
         {/* SECTION 2: Multi-Team Project Access & Credentials */}
-        <div className="rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0B0D13] p-6 lg:p-8 shadow-sm mb-8">
+        <div className="rounded-2xl border border-slate-200/80 dark:border-white/[0.08] bg-white/70 dark:bg-[#0B0D13]/85 backdrop-blur-xl p-5 sm:p-6 lg:p-8 shadow-sm dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] mb-8 min-w-0 max-w-full">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-zinc-800 mb-6">
             <div>
               <div className="flex items-center gap-2 text-sm font-semibold text-slate-900 dark:text-white">
