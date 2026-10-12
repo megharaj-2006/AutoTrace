@@ -1,0 +1,172 @@
+services:
+  # ----------------------------------------------------------------------------
+  # Redpanda: Lightweight Kafka-compatible Streaming Broker
+  # Memory Limit: 1 GiB, Reserved: 0M
+  # ----------------------------------------------------------------------------
+  redpanda:
+    image: docker.redpanda.com/redpandadata/redpanda:v24.1.2
+    container_name: autotrace-redpanda
+    command:
+      - redpanda
+      - start
+      - --smp
+      - "1"
+      - --memory
+      - 1G
+      - --reserve-memory
+      - 0M
+      - --overprovisioned
+      - --node-id
+      - "0"
+      - --kafka-addr
+      - PLAINTEXT://0.0.0.0:29092,OUTSIDE://0.0.0.0:9092
+      - --advertise-kafka-addr
+      - PLAINTEXT://redpanda:29092,OUTSIDE://localhost:9092
+    ports:
+      - "9092:9092"
+      - "9644:9644"
+    networks:
+      - autotrace-mesh
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1200M
+    healthcheck:
+      test: ["CMD-SHELL", "rpk cluster health | grep -i healthy || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 5s
+
+  # ----------------------------------------------------------------------------
+  # Redis: In-memory Cache & Hot-state Store
+  # Memory Limit: 256MB with allkeys-lru eviction
+  # ----------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: autotrace-redis
+    command: ["redis-server", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
+    ports:
+      - "6379:6379"
+    networks:
+      - autotrace-mesh
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep PONG || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 3s
+
+  # ----------------------------------------------------------------------------
+  # Mock E-Commerce Microservices Cluster (Ports 5000 - 5003)
+  # ----------------------------------------------------------------------------
+  gateway-service:
+    image: node:20-alpine
+    container_name: mock-gateway-service
+    ports:
+      - "5000:5000"
+    environment:
+      - PORT=5000
+      - SERVICE_NAME=gateway-service
+    command:
+      - "node"
+      - "-e"
+      - "const http=require('http'); const port=process.env.PORT||5000; const sName=process.env.SERVICE_NAME||'gateway-service'; http.createServer((req,res)=>{ res.writeHead(200,{'Content-Type':'application/json'}); if(req.url==='/health'){ return res.end(JSON.stringify({status:'healthy',service:sName})); } res.end(JSON.stringify({status:'ok',service:sName,time:Date.now()})); }).listen(port,()=>console.log(sName+' listening on '+port));"
+    networks:
+      - autotrace-mesh
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:5000/health >/dev/null 2>&1 || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  order-service:
+    image: node:20-alpine
+    container_name: mock-order-service
+    ports:
+      - "5001:5001"
+    environment:
+      - PORT=5001
+      - SERVICE_NAME=order-service
+    command:
+      - "node"
+      - "-e"
+      - "const http=require('http'); const port=process.env.PORT||5001; const sName=process.env.SERVICE_NAME||'order-service'; http.createServer((req,res)=>{ res.writeHead(200,{'Content-Type':'application/json'}); if(req.url==='/health'){ return res.end(JSON.stringify({status:'healthy',service:sName})); } res.end(JSON.stringify({status:'ok',service:sName,time:Date.now()})); }).listen(port,()=>console.log(sName+' listening on '+port));"
+    networks:
+      - autotrace-mesh
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:5001/health >/dev/null 2>&1 || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  reviews-service:
+    image: node:20-alpine
+    container_name: mock-reviews-service
+    ports:
+      - "5002:5002"
+    environment:
+      - PORT=5002
+      - SERVICE_NAME=reviews-service
+    command:
+      - "node"
+      - "-e"
+      - "const http=require('http'); const port=process.env.PORT||5002; const sName=process.env.SERVICE_NAME||'reviews-service'; http.createServer((req,res)=>{ res.writeHead(200,{'Content-Type':'application/json'}); if(req.url==='/health'){ return res.end(JSON.stringify({status:'healthy',service:sName})); } res.end(JSON.stringify({status:'ok',service:sName,time:Date.now()})); }).listen(port,()=>console.log(sName+' listening on '+port));"
+    networks:
+      - autotrace-mesh
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:5002/health >/dev/null 2>&1 || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  payment-vault:
+    image: node:20-alpine
+    container_name: mock-payment-vault
+    ports:
+      - "5003:5003"
+    environment:
+      - PORT=5003
+      - SERVICE_NAME=payment-vault
+    command:
+      - "node"
+      - "-e"
+      - "const http=require('http'); const port=process.env.PORT||5003; const sName=process.env.SERVICE_NAME||'payment-vault'; http.createServer((req,res)=>{ res.writeHead(200,{'Content-Type':'application/json'}); if(req.url==='/health'){ return res.end(JSON.stringify({status:'healthy',service:sName})); } res.end(JSON.stringify({status:'ok',service:sName,time:Date.now()})); }).listen(port,()=>console.log(sName+' listening on '+port));"
+    networks:
+      - autotrace-mesh
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:5003/health >/dev/null 2>&1 || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+networks:
+  autotrace-mesh:
+    name: autotrace-mesh
+    driver: bridge

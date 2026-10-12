@@ -21,16 +21,14 @@ export default function HowItWorksPage() {
   const steps = [
     {
       num: '01',
-      title: 'Deploy the Zero-Instrumentation Telemetry Collector',
-      summary: 'Intercept traffic at the socket layer with eBPF without changing a single line of microservice code.',
-      description: 'The AutoTrace-Sec telemetry collector attaches eBPF probes to kernel socket lifecycle events. It extracts directional HTTP/TCP metadata—source, destination, port, latency, status code, and exploit trace headers—and formats them into the canonical 9-field JSON schema.',
-      code: `# Download collector configuration via curl or docker
-docker run -d --name autotrace-collector \\
-  --privileged --network=autotrace-mesh \\
-  -v /sys/kernel/debug:/sys/kernel/debug:ro \\
-  -e KAFKA_BROKERS="redpanda:9092" \\
-  autotrace/telemetry-collector:latest`,
-      badge: 'eBPF Kernel Interceptor',
+      title: 'STAGE 01: Deploy the Lightweight Telemetry Watchdog (< 15 MB)',
+      summary: 'Zero code modification, instant 1-line curl install or single binary download. Intercepts socket traffic via eBPF kernel hooks out-of-band.',
+      description: 'The AutoTrace-Sec Telemetry Watchdog runs as a lightweight, zero-dependency host daemon (< 15 MB). It attaches out-of-band eBPF probes to socket lifecycle events (or loopback socket interceptors), computes Shannon entropy on request bodies in real time, formats events into the strict 9-field JSON contract, and forwards them asynchronously without adding microservice latency.',
+      code: `# Instant 1-line installation via curl
+curl -sSL https://get.autotrace.io/watchdog.sh | sudo bash -s -- \\
+  --token=at_live_demo_9841 \\
+  --gateway=http://localhost:8085`,
+      badge: 'Lightweight Agent (< 15 MB)',
     },
     {
       num: '02',
@@ -119,14 +117,14 @@ bpf_map_update_elem(quarantine_corridor_map, &rogue_key, &DROP_RULE, BPF_ANY)
           {steps.map((s) => (
             <div
               key={s.num}
-              className="rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white/70 dark:bg-[#0B0D13]/90 p-8 lg:p-10 shadow-sm"
+              className="rounded-2xl border border-slate-200/80 dark:border-white/[0.08] bg-white/70 dark:bg-[#0B0D13]/85 backdrop-blur-xl p-5 sm:p-8 lg:p-10 shadow-sm dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06),0_12px_36px_rgba(0,0,0,0.36)] scroll-reveal"
             >
-              <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-8">
+              <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-8 min-w-0 max-w-full">
                 
                 {/* Text Description */}
-                <div className="lg:w-1/2">
-                  <div className="flex items-center gap-3 mb-4">
-                    <span className="text-xs font-semibold px-2.5 py-1 rounded-md bg-slate-100 dark:bg-zinc-800 text-slate-800 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700">
+                <div className="w-full lg:w-1/2 min-w-0">
+                  <div className="flex items-center gap-3 mb-4 flex-wrap">
+                    <span className="text-xs font-semibold px-2.5 py-1 rounded-md bg-slate-100 dark:bg-zinc-800 text-slate-800 dark:text-zinc-200 border border-slate-200 dark:border-white/[0.08]">
                       STAGE {s.num}
                     </span>
                     <span className="text-xs text-slate-500 dark:text-zinc-400">
@@ -145,15 +143,15 @@ bpf_map_update_elem(quarantine_corridor_map, &rogue_key, &DROP_RULE, BPF_ANY)
                 </div>
 
                 {/* Code Terminal Box */}
-                <div className="lg:w-1/2 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-900 dark:bg-black p-4 text-xs font-mono text-slate-300 overflow-x-auto shadow-inner">
-                  <div className="flex items-center justify-between pb-2 mb-3 border-b border-zinc-800 text-[11px] text-zinc-500">
+                <div className="w-full lg:w-1/2 min-w-0 max-w-full rounded-xl border border-slate-200/80 dark:border-white/[0.08] bg-slate-50 dark:bg-black/80 backdrop-blur-md p-4 text-xs font-mono text-slate-800 dark:text-slate-300 overflow-x-auto shadow-inner">
+                  <div className="flex items-center justify-between pb-2 mb-3 border-b border-slate-200 dark:border-zinc-800 text-[11px] text-slate-500 dark:text-zinc-500">
                     <div className="flex items-center gap-1.5">
-                      <Terminal className="w-3.5 h-3.5 text-sky-400" />
+                      <Terminal className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
                       <span>TERMINAL / RUNTIME CODE</span>
                     </div>
                     <span>BASH &amp; JAVA 21</span>
                   </div>
-                  <pre className="text-sky-400 font-mono leading-relaxed whitespace-pre">
+                  <pre className="text-sky-600 dark:text-sky-400 font-mono leading-relaxed whitespace-pre text-[11px] sm:text-xs overflow-x-auto min-w-0 max-w-full">
                     {s.code}
                   </pre>
                 </div>
@@ -181,12 +179,12 @@ bpf_map_update_elem(quarantine_corridor_map, &rogue_key, &DROP_RULE, BPF_ANY)
               return (
                 <div
                   key={b.title}
-                  className="rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0B0D13] p-6 hover:border-slate-300 dark:hover:border-zinc-700 transition-all shadow-sm"
+                  className="rounded-2xl border border-slate-200/80 dark:border-white/[0.08] bg-white/70 dark:bg-[#0B0D13]/85 backdrop-blur-xl p-6 hover:border-slate-300 dark:hover:border-white/[0.16] transition-all duration-300 shadow-sm dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] group scroll-reveal"
                 >
-                  <div className="w-10 h-10 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-600 dark:text-sky-400 mb-4">
+                  <div className="w-10 h-10 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-600 dark:text-sky-400 mb-4 group-hover:scale-110 transition-transform">
                     <Icon className="w-5 h-5" />
                   </div>
-                  <h3 className="text-base font-semibold text-slate-900 dark:text-white mb-2">
+                  <h3 className="text-base font-semibold text-slate-900 dark:text-white mb-2 group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors">
                     {b.title}
                   </h3>
                   <p className="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed">
@@ -199,23 +197,23 @@ bpf_map_update_elem(quarantine_corridor_map, &rogue_key, &DROP_RULE, BPF_ANY)
         </div>
 
         {/* Call to Action */}
-        <div className="rounded-2xl border border-slate-200 dark:border-zinc-800 bg-slate-900 text-white dark:bg-[#0B0D13] p-8 sm:p-12 text-center">
-          <h2 className="text-2xl sm:text-3xl font-semibold mb-4">
+        <div className="rounded-2xl border border-slate-200/80 dark:border-white/[0.08] bg-white/80 dark:bg-[#0B0D13]/85 backdrop-blur-2xl text-slate-900 dark:text-white p-6 sm:p-12 text-center shadow-lg dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06),0_16px_40px_rgba(0,0,0,0.4)]">
+          <h2 className="text-2xl sm:text-3xl font-semibold mb-4 text-slate-900 dark:text-white">
             Ready to test AutoTrace-Sec on your architecture?
           </h2>
-          <p className="text-sm text-zinc-400 max-w-xl mx-auto mb-8">
+          <p className="text-sm text-slate-600 dark:text-zinc-400 max-w-xl mx-auto mb-8">
             Deploy in minutes with our standalone Docker Compose evaluation sandbox. No credit card required.
           </p>
-          <div className="flex flex-wrap items-center justify-center gap-4">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
               href="/register"
-              className="px-6 py-3 rounded-xl bg-sky-500 hover:bg-sky-400 text-zinc-950 font-semibold text-xs transition-colors"
+              className="w-full sm:w-auto px-6 py-3 rounded-xl bg-sky-500 hover:bg-sky-400 text-white dark:text-zinc-950 font-semibold text-xs transition-colors shadow-sm text-center"
             >
               Start Free Developer Sandbox
             </Link>
             <Link
               href="/pricing"
-              className="px-6 py-3 rounded-xl border border-zinc-700 bg-zinc-800 hover:bg-zinc-700 text-white font-semibold text-xs transition-colors"
+              className="w-full sm:w-auto px-6 py-3 rounded-xl border border-slate-200 dark:border-white/[0.1] bg-slate-100 hover:bg-slate-200 text-slate-900 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-white font-semibold text-xs transition-colors shadow-xs text-center"
             >
               View Tier Pricing
             </Link>

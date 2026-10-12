@@ -8,11 +8,11 @@ export function ArchitectureBlueprint() {
   const steps = [
     {
       step: '01',
-      title: 'eBPF Interceptor',
+      title: 'Telemetry Watchdog (< 15 MB)',
       owner: 'Member 1',
-      port: 'Kernel Socket',
-      description: 'Zero-overhead socket tracing on connect() and tcp_sendmsg() without changing service code.',
-      tech: 'Go / C eBPF',
+      port: 'Kernel Socket / eBPF',
+      description: 'STAGE 01: Deploy the Lightweight Telemetry Watchdog (< 15 MB) — Zero code modification, instant 1-line curl install or single binary download. Intercepts socket traffic via eBPF kernel hooks out-of-band.',
+      tech: 'Zero-Dep Native Agent',
     },
     {
       step: '02',
@@ -67,23 +67,24 @@ export function ArchitectureBlueprint() {
         </div>
 
         {/* Blueprint Pipeline Steps Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           {steps.map((item) => (
             <div
               key={item.step}
-              className="relative rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white/70 dark:bg-[#0B0D13]/90 p-5 flex flex-col justify-between hover:border-slate-300 dark:hover:border-zinc-700 transition-all shadow-sm"
+              className="relative rounded-2xl border border-slate-200/80 dark:border-white/[0.08] bg-white/70 dark:bg-[#0B0D13]/85 backdrop-blur-xl p-5 flex flex-col justify-between hover:border-slate-300 dark:hover:border-white/[0.16] transition-all duration-300 shadow-sm dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06),0_8px_32px_rgba(0,0,0,0.36)] group"
             >
               <div>
-                <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-zinc-800/80 mb-4">
-                  <span className="text-xs font-bold text-slate-900 dark:text-white tracking-tight">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-white/[0.06] mb-4">
+                  <span className="text-xs font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-sky-500 group-hover:scale-125 transition-transform"></span>
                     STAGE {item.step}
                   </span>
-                  <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 font-medium">
+                  <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-zinc-800/80 text-slate-600 dark:text-zinc-300 font-medium border border-slate-200/60 dark:border-zinc-700/60">
                     {item.port}
                   </span>
                 </div>
 
-                <h3 className="text-sm font-semibold text-slate-900 dark:text-white mb-2">
+                <h3 className="text-sm font-semibold text-slate-900 dark:text-white mb-2 group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors">
                   {item.title}
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed mb-4 font-normal">
@@ -91,7 +92,7 @@ export function ArchitectureBlueprint() {
                 </p>
               </div>
 
-              <div className="pt-3 border-t border-slate-100 dark:border-zinc-800/80 flex items-center justify-between text-[11px]">
+              <div className="pt-3 border-t border-slate-100 dark:border-white/[0.06] flex items-center justify-between text-[11px]">
                 <span className="text-slate-400 dark:text-zinc-500">{item.owner}</span>
                 <span className="text-slate-700 dark:text-zinc-300 font-medium">{item.tech}</span>
               </div>
@@ -100,17 +101,17 @@ export function ArchitectureBlueprint() {
         </div>
 
         {/* Contract Single Source of Truth Banner */}
-        <div className="mt-8 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white/80 dark:bg-[#0B0D13]/90 p-4 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs">
-          <div className="flex items-center gap-3">
-            <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-            <span className="text-slate-700 dark:text-zinc-300">
-              Contract Enforced: <code className="text-sky-600 dark:text-sky-400 font-medium">shared/schemas/telemetry-event.json</code> &amp; <code className="text-sky-600 dark:text-sky-400 font-medium">alert-payload.json</code>
+        <div className="mt-8 rounded-xl border border-slate-200/80 dark:border-white/[0.08] bg-white/80 dark:bg-[#0B0D13]/85 backdrop-blur-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-xs shadow-sm dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] min-w-0 max-w-full">
+          <div className="flex items-center gap-3 min-w-0 max-w-full flex-wrap">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
+            <span className="text-slate-700 dark:text-zinc-300 break-words min-w-0">
+              Contract Enforced: <code className="text-sky-600 dark:text-sky-400 font-medium break-all">shared/schemas/telemetry-event.json</code> &amp; <code className="text-sky-600 dark:text-sky-400 font-medium break-all">alert-payload.json</code>
             </span>
           </div>
 
           <Link
             href="/how-it-works#architecture"
-            className="text-xs text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white inline-flex items-center gap-1 transition-colors font-medium"
+            className="text-xs text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white inline-flex items-center gap-1 transition-colors font-medium shrink-0"
           >
             <span>Read Architecture Specification</span>
             <ArrowRight className="w-3.5 h-3.5" />

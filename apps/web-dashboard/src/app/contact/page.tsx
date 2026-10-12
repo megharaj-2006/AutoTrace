@@ -50,7 +50,7 @@ export default function ContactPage() {
           
           {/* Left 7 Columns: Contact Form */}
           <div className="lg:col-span-7">
-            <div className="rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0B0D13] p-8 sm:p-10 shadow-sm">
+            <div className="rounded-2xl border border-slate-200/80 dark:border-white/[0.08] bg-white/70 dark:bg-[#0B0D13]/85 backdrop-blur-2xl p-6 sm:p-10 shadow-sm dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06),0_12px_36px_rgba(0,0,0,0.36)] scroll-reveal min-w-0 max-w-full">
               {submitted ? (
                 <div className="py-12 text-center">
                   <div className="w-12 h-12 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center mx-auto mb-4 border border-emerald-500/20">
@@ -175,7 +175,7 @@ export default function ContactPage() {
           <div className="lg:col-span-5 space-y-6">
             
             {/* Direct Channels Box */}
-            <div className="p-6 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0B0D13]">
+            <div className="p-6 rounded-2xl border border-slate-200/80 dark:border-white/[0.08] bg-white/70 dark:bg-[#0B0D13]/85 backdrop-blur-xl shadow-sm dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] scroll-reveal">
               <h3 className="text-sm font-semibold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
                 <Building className="w-4 h-4 text-sky-500" />
                 Direct Contact Channels
@@ -183,21 +183,21 @@ export default function ContactPage() {
               <div className="space-y-3 font-mono text-xs">
                 <div>
                   <span className="text-slate-400 dark:text-zinc-500 block">Technical Architecture</span>
-                  <span className="text-slate-800 dark:text-zinc-200 font-medium">engineering@autotrace-sec.io</span>
+                  <span className="text-slate-800 dark:text-zinc-200 font-medium break-all">engineering@autotrace-sec.io</span>
                 </div>
                 <div>
                   <span className="text-slate-400 dark:text-zinc-500 block">Enterprise Licensing &amp; Admin</span>
-                  <span className="text-slate-800 dark:text-zinc-200 font-medium">enterprise@autotrace-sec.io</span>
+                  <span className="text-slate-800 dark:text-zinc-200 font-medium break-all">enterprise@autotrace-sec.io</span>
                 </div>
                 <div>
                   <span className="text-slate-400 dark:text-zinc-500 block">Platform Mesh Gateway</span>
-                  <span className="text-slate-800 dark:text-zinc-200 font-medium">autotrace-mesh (Ports 9092, 8080, 8000, 8081)</span>
+                  <span className="text-slate-800 dark:text-zinc-200 font-medium break-words">autotrace-mesh (Ports 9092, 8080, 8000, 8081)</span>
                 </div>
               </div>
             </div>
 
             {/* Responsible Disclosure Box */}
-            <div id="disclosure" className="p-6 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950">
+            <div id="disclosure" className="p-6 rounded-2xl border border-slate-200/80 dark:border-white/[0.08] bg-slate-50/70 dark:bg-zinc-950/80 backdrop-blur-xl dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] scroll-reveal">
               <h3 className="text-sm font-semibold text-slate-900 dark:text-white mb-2 flex items-center gap-2">
                 <Lock className="w-4 h-4 text-amber-500" />
                 Responsible Vulnerability Disclosure
@@ -205,10 +205,10 @@ export default function ContactPage() {
               <p className="text-xs text-slate-600 dark:text-zinc-400 leading-relaxed mb-4">
                 We take kernel and actuator boundary security seriously. If you have discovered an issue in our eBPF interceptor, proxy filters, or GAT scoring logic, submit an encrypted report directly to our security officer.
               </p>
-              <div className="p-3 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-black font-mono text-[11px] text-slate-500 dark:text-zinc-400 space-y-1">
+              <div className="p-3 rounded-xl border border-slate-200/80 dark:border-white/[0.08] bg-white dark:bg-black font-mono text-[11px] text-slate-500 dark:text-zinc-400 space-y-1">
                 <div>PGP KEY ID: 0x4A81E99F20B6D</div>
-                <div>FINGERPRINT: D491 8A20 98F1 CE40 B892 001A 4A81 E99F 20B6 D880</div>
-                <div className="text-emerald-500 pt-1 font-semibold">security@autotrace-sec.io</div>
+                <div className="break-all">FINGERPRINT: D491 8A20 98F1 CE40 B892 001A 4A81 E99F 20B6 D880</div>
+                <div className="text-emerald-500 pt-1 font-semibold break-all">security@autotrace-sec.io</div>
               </div>
             </div>
 

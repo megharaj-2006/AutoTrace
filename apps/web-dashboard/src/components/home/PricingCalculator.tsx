@@ -36,11 +36,11 @@ export function PricingCalculator() {
         </div>
 
         {/* Calculator Widget Box */}
-        <div className="max-w-4xl mx-auto rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white/70 dark:bg-[#0B0D13]/90 p-8 sm:p-12 shadow-xl">
+        <div className="max-w-4xl mx-auto rounded-2xl border border-slate-200/80 dark:border-white/[0.08] bg-white/70 dark:bg-[#0B0D13]/85 backdrop-blur-2xl p-5 sm:p-8 md:p-12 shadow-xl dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06),0_16px_40px_rgba(0,0,0,0.4)] min-w-0 max-w-full">
           
           {/* Slider Control */}
           <div className="mb-10">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
               <label htmlFor="node-range" className="text-sm font-semibold text-slate-900 dark:text-white">
                 Active Microservice Nodes (Watchdogs)
               </label>
@@ -59,7 +59,7 @@ export function PricingCalculator() {
               className="w-full h-2 bg-slate-200 dark:bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-slate-900 dark:accent-white"
             />
 
-            <div className="flex justify-between text-xs text-slate-400 dark:text-zinc-500 mt-2 font-medium">
+            <div className="flex justify-between text-[11px] sm:text-xs text-slate-400 dark:text-zinc-500 mt-2 font-medium flex-wrap gap-1">
               <span>1 Node (Solo)</span>
               <span>10 Nodes (Standard Mesh)</span>
               <span>30+ Nodes (High-Scale Fleet)</span>
@@ -69,40 +69,40 @@ export function PricingCalculator() {
           {/* Metric Estimates Grid - Unified Typography */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10 text-xs">
             
-            <div className="p-4 rounded-xl border border-slate-200/80 dark:border-zinc-800/80 bg-slate-50/70 dark:bg-zinc-950/70">
+            <div className="p-4 rounded-xl border border-slate-200/80 dark:border-white/[0.06] bg-slate-50/70 dark:bg-zinc-950/60 backdrop-blur-md">
               <div className="text-xs text-slate-500 dark:text-zinc-400 mb-1 font-medium">
                 Telemetry Throughput
               </div>
               <div className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
                 ~{eventsPerSec.toLocaleString()} <span className="text-xs font-normal text-slate-500">events/s</span>
               </div>
-              <div className="text-[11px] text-slate-400 mt-1">Direct to Redpanda:9092</div>
+              <div className="text-[11px] text-slate-400 dark:text-zinc-500 mt-1">Direct to Redpanda:9092</div>
             </div>
 
-            <div className="p-4 rounded-xl border border-slate-200/80 dark:border-zinc-800/80 bg-slate-50/70 dark:bg-zinc-950/70">
+            <div className="p-4 rounded-xl border border-slate-200/80 dark:border-white/[0.06] bg-slate-50/70 dark:bg-zinc-950/60 backdrop-blur-md">
               <div className="text-xs text-slate-500 dark:text-zinc-400 mb-1 font-medium">
                 Graph Memory Footprint
               </div>
               <div className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
                 ~{memoryMB} <span className="text-xs font-normal text-slate-500">MB RAM</span>
               </div>
-              <div className="text-[11px] text-slate-400 mt-1">In-memory Graph Engine</div>
+              <div className="text-[11px] text-slate-400 dark:text-zinc-500 mt-1">In-memory Graph Engine</div>
             </div>
 
-            <div className="p-4 rounded-xl border border-slate-200/80 dark:border-zinc-800/80 bg-slate-50/70 dark:bg-zinc-950/70">
+            <div className="p-4 rounded-xl border border-slate-200/80 dark:border-white/[0.06] bg-slate-50/70 dark:bg-zinc-950/60 backdrop-blur-md">
               <div className="text-xs text-slate-500 dark:text-zinc-400 mb-1 font-medium">
                 GAT RCA SLA
               </div>
               <div className="text-2xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400">
                 &lt; 9.2 <span className="text-xs font-normal text-slate-500">ms</span>
               </div>
-              <div className="text-[11px] text-slate-400 mt-1">Sub-second containment</div>
+              <div className="text-[11px] text-slate-400 dark:text-zinc-500 mt-1">Sub-second containment</div>
             </div>
 
           </div>
 
           {/* Recommended Plan Result Banner */}
-          <div className="p-6 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-900/50 flex flex-col sm:flex-row items-center justify-between gap-6">
+          <div className="p-5 sm:p-6 rounded-xl border border-slate-200/80 dark:border-white/[0.08] bg-slate-50/60 dark:bg-zinc-900/40 backdrop-blur-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
             <div>
               <div className="text-xs font-medium text-slate-500 dark:text-zinc-400 tracking-wider uppercase mb-1">
                 Recommended Tier
@@ -120,7 +120,7 @@ export function PricingCalculator() {
 
             <Link
               href={recommendedTier.href}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-white dark:bg-zinc-100 dark:hover:bg-white dark:text-zinc-950 transition-all shrink-0 shadow-sm"
+              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-white dark:bg-zinc-100 dark:hover:bg-white dark:text-zinc-950 transition-all shrink-0 shadow-sm w-full sm:w-auto"
             >
               <span>{recommendedTier.cta}</span>
               <ArrowRight className="w-4 h-4" />

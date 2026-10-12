@@ -1,0 +1,17 @@
+[Unit]
+Description=AutoTrace-Sec Lightweight Telemetry Watchdog Agent (< 15 MB)
+After=network.target network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+EnvironmentFile=-/etc/autotrace/watchdog.conf
+ExecStart=/usr/local/bin/autotrace-watchdog start --token=${AUTOTRACE_TOKEN} --gateway=${AUTOTRACE_GATEWAY} --port=${AUTOTRACE_PORT} --service-name=${SERVICE_NAME}
+Restart=always
+RestartSec=5s
+LimitNOFILE=65536
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

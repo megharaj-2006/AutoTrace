@@ -127,23 +127,23 @@ export default function PricingPage() {
           </p>
 
           {/* Billing Switch */}
-          <div className="mt-8 inline-flex items-center gap-3 p-1 rounded-xl bg-slate-100 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800">
+          <div className="mt-8 inline-flex flex-col sm:flex-row items-stretch sm:items-center gap-1.5 sm:gap-3 p-1.5 rounded-xl bg-slate-100 dark:bg-zinc-900 border border-slate-200/80 dark:border-white/[0.08] max-w-full">
             <button
               onClick={() => setBillingCycle('monthly')}
-              className={`px-4 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              className={`px-4 py-2 sm:py-1.5 rounded-lg text-xs font-medium transition-all ${
                 billingCycle === 'monthly'
                   ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-white shadow-sm'
-                  : 'text-slate-600 dark:text-zinc-400'
+                  : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
               Monthly Billing
             </button>
             <button
               onClick={() => setBillingCycle('annual')}
-              className={`px-4 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              className={`px-4 py-2 sm:py-1.5 rounded-lg text-xs font-medium transition-all ${
                 billingCycle === 'annual'
                   ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-white shadow-sm'
-                  : 'text-slate-600 dark:text-zinc-400'
+                  : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
               Annual Billing <span className="text-emerald-500 font-semibold">(Save 20%)</span>
@@ -162,10 +162,10 @@ export default function PricingPage() {
             {individualPlans.map((plan) => (
               <div
                 key={plan.name}
-                className={`relative rounded-2xl border p-8 flex flex-col justify-between transition-all ${
+                className={`relative rounded-2xl border p-6 sm:p-8 flex flex-col justify-between transition-all duration-300 backdrop-blur-2xl ${
                   plan.popular
-                    ? 'border-sky-500/50 bg-sky-50/20 dark:bg-sky-500/5 shadow-lg'
-                    : 'border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0B0D13]'
+                    ? 'border-sky-500/50 bg-sky-50/20 dark:bg-sky-500/5 shadow-lg dark:shadow-[inset_0_1px_0_0_rgba(56,189,248,0.15),0_12px_36px_rgba(0,0,0,0.4)]'
+                    : 'border-slate-200/80 dark:border-white/[0.08] bg-white/70 dark:bg-[#0B0D13]/85 shadow-sm dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06),0_8px_32px_rgba(0,0,0,0.3)]'
                 }`}
               >
                 <div>
@@ -225,10 +225,10 @@ export default function PricingPage() {
             {orgPlans.map((plan) => (
               <div
                 key={plan.name}
-                className={`relative rounded-2xl border p-8 flex flex-col justify-between transition-all ${
+                className={`relative rounded-2xl border p-6 sm:p-8 flex flex-col justify-between transition-all duration-300 backdrop-blur-2xl ${
                   plan.popular
-                    ? 'border-emerald-500/50 bg-emerald-50/20 dark:bg-emerald-500/5 shadow-lg'
-                    : 'border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0B0D13]'
+                    ? 'border-emerald-500/50 bg-emerald-50/20 dark:bg-emerald-500/5 shadow-lg dark:shadow-[inset_0_1px_0_0_rgba(16,185,129,0.15),0_12px_36px_rgba(0,0,0,0.4)]'
+                    : 'border-slate-200/80 dark:border-white/[0.08] bg-white/70 dark:bg-[#0B0D13]/85 shadow-sm dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06),0_8px_32px_rgba(0,0,0,0.3)]'
                 }`}
               >
                 <div>
@@ -292,7 +292,7 @@ export default function PricingPage() {
             {faqs.map((faq) => (
               <div
                 key={faq.q}
-                className="p-6 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0B0D13]"
+                className="p-6 rounded-2xl border border-slate-200/80 dark:border-white/[0.08] bg-white/70 dark:bg-[#0B0D13]/85 backdrop-blur-xl shadow-sm dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] hover:border-slate-300 dark:hover:border-white/[0.16] transition-all duration-300 scroll-reveal"
               >
                 <h3 className="text-sm font-semibold text-slate-900 dark:text-white mb-2 flex items-start gap-2">
                   <HelpCircle className="w-4 h-4 text-sky-500 shrink-0 mt-0.5" />

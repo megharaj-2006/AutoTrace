@@ -38,7 +38,7 @@ export interface ClusterNodeInfo {
   name: string;
   role: string;
   port: number;
-  status: 'HEALTHY' | 'ANOMALOUS' | 'QUARANTINED';
+  status: 'HEALTHY' | 'ANOMALOUS' | 'QUARANTINED' | 'DEGRADED';
   p99LatencyMs: number;
   reqPerSec: number;
   cpuUsage: number;

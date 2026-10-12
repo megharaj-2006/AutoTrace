@@ -37,6 +37,18 @@
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
 }
 
+html, body {
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
+  position: relative;
+  box-sizing: border-box;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
 body {
   background-color: var(--surface-primary);
   color: var(--text-primary);
@@ -51,17 +63,126 @@ body {
   border-radius: 8px;
 }
 
+/* Studio & Antigravity Inspired Glassmorphism */
+.glass-panel {
+  background-color: rgba(255, 255, 255, 0.78);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(226, 232, 240, 0.85);
+}
+
+.dark .glass-panel {
+  background-color: rgba(11, 13, 19, 0.85);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.08), 0 12px 36px 0 rgba(0, 0, 0, 0.4);
+}
+
+.glass-card {
+  background-color: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(226, 232, 240, 0.85);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.dark .glass-card {
+  background-color: rgba(13, 16, 24, 0.8);
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.06), 0 8px 32px -4px rgba(0, 0, 0, 0.45);
+}
+
+.dark .glass-card:hover {
+  border-color: rgba(56, 189, 248, 0.28);
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.12), 0 16px 42px -4px rgba(0, 0, 0, 0.6), 0 0 24px -2px rgba(56, 189, 248, 0.12);
+}
+
+/* Subtle Google Studio & Antigravity Motion Keyframes */
+@keyframes studio-ambient {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) scale(1);
+    opacity: 0.4;
+  }
+  50% {
+    transform: translate3d(0, -10px, 0) scale(1.03);
+    opacity: 0.65;
+  }
+}
+
+@keyframes studio-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes subtle-entrance {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 14px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.animate-studio-ambient {
+  animation: studio-ambient 9s ease-in-out infinite;
+}
+
+.animate-subtle-entrance {
+  animation: subtle-entrance 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Native Scroll-Driven Reveal with Modern Feature Detection */
+@media (prefers-reduced-motion: no-preference) {
+  @supports ((animation-timeline: view()) and (animation-range: entry)) {
+    @keyframes scroll-subtle-reveal {
+      from {
+        opacity: 0.2;
+        transform: translate3d(0, 20px, 0);
+      }
+      to {
+        opacity: 1;
+        transform: translate3d(0, 0, 0);
+      }
+    }
+
+    .scroll-reveal {
+      animation: scroll-subtle-reveal cubic-bezier(0.16, 1, 0.3, 1) both;
+      animation-timeline: view();
+      animation-range: entry 5% cover 25%;
+    }
+  }
+}
+
+/* Mobile Responsiveness Guard */
+pre, code, table {
+  max-width: 100%;
+}
+
+img, svg, canvas {
+  max-width: 100%;
+  height: auto;
+}
+
 /* Custom minimal scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.25);
-  border-radius: 3px;
+  background: rgba(148, 163, 184, 0.22);
+  border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(148, 163, 184, 0.45);
