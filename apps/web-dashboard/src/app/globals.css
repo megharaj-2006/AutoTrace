@@ -1,0 +1,68 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Studio Light Mode Tokens */
+  --surface-primary: #ffffff;
+  --surface-secondary: #f8f9fa;
+  --surface-card: #ffffff;
+  --card-border: #e2e8f0;
+  --text-primary: #0f172a;
+  --text-muted: #64748b;
+  --accent-primary: #0284c7;
+  --status-healthy: #059669;
+  --status-threat: #e11d48;
+  --status-caution: #d97706;
+}
+
+.dark {
+  /* SOC Deep Obsidian Dark Mode Tokens */
+  --surface-primary: #090a0f;
+  --surface-secondary: #11131a;
+  --surface-card: #171a24;
+  --card-border: #242838;
+  --text-primary: #f1f5f9;
+  --text-muted: #94a3b8;
+  --accent-primary: #38bdf8;
+  --status-healthy: #10b981;
+  --status-threat: #f43f5e;
+  --status-caution: #f59e0b;
+}
+
+/* Strict single typography throughout entire website */
+*, body, code, pre, .font-mono {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+}
+
+body {
+  background-color: var(--surface-primary);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Hairline 1px precision panel */
+.precision-card {
+  background-color: var(--surface-card);
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+}
+
+/* Custom minimal scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.25);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.45);
+}
