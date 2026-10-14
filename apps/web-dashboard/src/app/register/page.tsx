@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { 
   User, 
@@ -12,10 +13,17 @@ import {
   CheckCircle2, 
   Building2, 
   Terminal,
-  Upload
+  Upload,
+  Github,
+  Linkedin,
+  Globe,
+  MapPin,
+  Sparkles,
+  Camera
 } from 'lucide-react';
 import { SocialAuthButtons } from '@/components/auth/SocialAuthButtons';
 import { AutoTraceLogo } from '@/components/navigation/AutoTraceLogo';
+import { setActiveUserProfile, AVATAR_PRESETS } from '@/lib/userProfile';
 
 function safeFormatError(err: string | null): string {
   if (!err) return '';
@@ -42,8 +50,15 @@ function RegisterContent() {
     email: '',
     password: '',
     confirmPassword: '',
-    about: '',
-    avatarUrl: '',
+    headline: '',
+    bio: '',
+    company: '',
+    location: '',
+    skills: 'Kubernetes, Go, Kafka, eBPF',
+    githubUsername: '',
+    linkedinUrl: '',
+    websiteUrl: '',
+    avatarUrl: AVATAR_PRESETS[0].url,
   });
 
   const [orgForm, setOrgForm] = useState({
@@ -61,19 +76,51 @@ function RegisterContent() {
   const handleIndividualSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitted(true);
+
+    const skillsArray = individualForm.skills
+      ? individualForm.skills.split(',').map((s) => s.trim()).filter(Boolean)
+      : ['Kubernetes', 'Go', 'Kafka', 'eBPF'];
+
+    setActiveUserProfile({
+      name: individualForm.name,
+      username: individualForm.username,
+      email: individualForm.email,
+      avatarUrl: individualForm.avatarUrl || null,
+      headline: individualForm.headline || 'Cloud & Security Telemetry Engineer',
+      bio: individualForm.bio || 'Distributed systems engineer focused on autonomous security telemetry and observability.',
+      company: individualForm.company || '',
+      location: individualForm.location || '',
+      skills: skillsArray,
+      githubUsername: individualForm.githubUsername || '',
+      linkedinUrl: individualForm.linkedinUrl || '',
+      websiteUrl: individualForm.websiteUrl || '',
+      role: 'individual',
+    });
+
     setTimeout(() => {
-      // In local demo mode, take directly to the individual workspace
       router.push('/app/projects');
-    }, 1500);
+    }, 1200);
   };
 
   const handleOrgSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitted(true);
+
+    setActiveUserProfile({
+      name: orgForm.adminName,
+      username: orgForm.adminEmail.split('@')[0].toLowerCase().replace(/[^a-z0-9_-]/g, ''),
+      email: orgForm.adminEmail,
+      headline: `SPOC Admin & Platform Lead at ${orgForm.companyName}`,
+      bio: `Enterprise Organization Administrator managing microservice telemetry, watchdog node distribution, and security containment policies for ${orgForm.companyName}.`,
+      company: orgForm.companyName,
+      location: '',
+      skills: ['Kubernetes', 'eBPF', 'Telemetry Governance', 'Docker', 'SecOps'],
+      role: 'admin',
+    });
+
     setTimeout(() => {
-      // In local demo mode, take directly to the org admin portal
       router.push('/app/admin');
-    }, 1500);
+    }, 1200);
   };
 
   return (
@@ -246,22 +293,145 @@ function RegisterContent() {
                     </div>
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-1.5">
-                      About / Primary Tech Stack
-                    </label>
-                    <input
-                      type="text"
-                      value={individualForm.about}
-                      onChange={(e) => setIndividualForm({ ...individualForm, about: e.target.value })}
-                      placeholder="Distributed Systems Engineer working with Go, Python, and Kafka"
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500"
-                    />
+                  {/* Profile & Identity Details (GitHub & LinkedIn fields) */}
+                  <div className="pt-4 border-t border-slate-200 dark:border-zinc-800 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="text-xs font-semibold text-slate-800 dark:text-zinc-200 flex items-center gap-1.5">
+                        <Sparkles className="w-3.5 h-3.5 text-sky-500" />
+                        <span>Public Profile & Identifiers (Optional)</span>
+                      </div>
+                      <span className="text-[10px] text-slate-400">Can be edited anytime</span>
+                    </div>
+
+                    {/* Avatar Preset Selection */}
+                    <div>
+                      <label className="block text-[11px] font-medium text-slate-600 dark:text-zinc-400 mb-1.5">
+                        Choose Profile Avatar
+                      </label>
+                      <div className="flex flex-wrap items-center gap-2">
+                        {AVATAR_PRESETS.map((preset) => (
+                          <button
+                            key={preset.id}
+                            type="button"
+                            onClick={() => setIndividualForm({ ...individualForm, avatarUrl: preset.url })}
+                            className={`flex items-center gap-1.5 p-1 pr-2.5 rounded-lg border transition-all ${
+                              individualForm.avatarUrl === preset.url
+                                ? 'border-sky-500 bg-sky-50 dark:bg-sky-950/40 shadow-xs'
+                                : 'border-slate-200 dark:border-zinc-800 hover:border-slate-300'
+                            }`}
+                          >
+                            <Image
+                              src={preset.url}
+                              alt={preset.label}
+                              width={24}
+                              height={24}
+                              className="w-6 h-6 rounded-md object-cover"
+                            />
+                            <span className="text-[11px] font-medium text-slate-700 dark:text-zinc-300">
+                              {preset.label}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-1.5">
+                        Headline / Role
+                      </label>
+                      <input
+                        type="text"
+                        value={individualForm.headline}
+                        onChange={(e) => setIndividualForm({ ...individualForm, headline: e.target.value })}
+                        placeholder="Distributed Systems & Telemetry Engineer"
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-1.5">
+                        Engineering Bio & Focus
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={individualForm.bio}
+                        onChange={(e) => setIndividualForm({ ...individualForm, bio: e.target.value })}
+                        placeholder="Building cloud infrastructure with eBPF telemetry, Kafka streaming, and PyTorch RCA..."
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-1.5">
+                          Company / Organization
+                        </label>
+                        <input
+                          type="text"
+                          value={individualForm.company}
+                          onChange={(e) => setIndividualForm({ ...individualForm, company: e.target.value })}
+                          placeholder="Acme Cloud Networks"
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-1.5">
+                          Location
+                        </label>
+                        <input
+                          type="text"
+                          value={individualForm.location}
+                          onChange={(e) => setIndividualForm({ ...individualForm, location: e.target.value })}
+                          placeholder="San Francisco, CA"
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-1.5">
+                          GitHub Username
+                        </label>
+                        <input
+                          type="text"
+                          value={individualForm.githubUsername}
+                          onChange={(e) => setIndividualForm({ ...individualForm, githubUsername: e.target.value })}
+                          placeholder="octocat"
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500 font-mono"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-1.5">
+                          LinkedIn Profile URL
+                        </label>
+                        <input
+                          type="text"
+                          value={individualForm.linkedinUrl}
+                          onChange={(e) => setIndividualForm({ ...individualForm, linkedinUrl: e.target.value })}
+                          placeholder="https://linkedin.com/in/username"
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500 font-mono"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-1.5">
+                        Technical Skills (comma-separated)
+                      </label>
+                      <input
+                        type="text"
+                        value={individualForm.skills}
+                        onChange={(e) => setIndividualForm({ ...individualForm, skills: e.target.value })}
+                        placeholder="Kubernetes, Go, Kafka, eBPF, Next.js"
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500 font-mono"
+                      />
+                    </div>
                   </div>
 
                   <button
                     type="submit"
-                    className="w-full mt-2 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white dark:bg-sky-500 dark:hover:bg-sky-400 dark:text-zinc-950 font-semibold text-xs transition-colors flex items-center justify-center gap-2 shadow-sm"
+                    className="w-full mt-4 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white dark:bg-sky-500 dark:hover:bg-sky-400 dark:text-zinc-950 font-semibold text-xs transition-colors flex items-center justify-center gap-2 shadow-sm"
                   >
                     <span>Create Individual Developer Account</span>
                     <ArrowRight className="w-4 h-4" />
