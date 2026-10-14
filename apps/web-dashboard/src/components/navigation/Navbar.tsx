@@ -239,8 +239,8 @@ export function Navbar() {
                   >
                     <User className="w-4 h-4 text-sky-500" />
                     <div>
-                      <div className="font-medium text-slate-900 dark:text-white">Individual Console</div>
-                      <div className="text-[10px] text-slate-500 dark:text-zinc-400">Developer sandbox login</div>
+                      <div className="font-medium text-slate-900 dark:text-white">Personal Workspace</div>
+                      <div className="text-[10px] text-slate-500 dark:text-zinc-400">Dedicated profile & clusters</div>
                     </div>
                   </Link>
 

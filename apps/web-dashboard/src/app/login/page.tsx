@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { SocialAuthButtons } from '@/components/auth/SocialAuthButtons';
 import { AutoTraceLogo } from '@/components/navigation/AutoTraceLogo';
+import { setActiveUserProfile } from '@/lib/userProfile';
 
 type LoginTab = 'individual' | 'team' | 'admin';
 
@@ -60,25 +61,51 @@ function LoginContent() {
   const handleIndividualSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+
+    const email = indEmail.trim() || 'engineer@autotrace-sec.internal';
+    setActiveUserProfile({
+      email,
+      role: 'individual',
+      workspaceTitle: 'Personal Dedicated Workspace',
+    });
+
     setTimeout(() => {
       router.push('/app/projects');
-    }, 800);
+    }, 600);
   };
 
   const handleTeamSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+
+    const email = memberId.trim()
+      ? `${memberId.trim()}@team.autotrace-sec.internal`
+      : 'sre@team.autotrace-sec.internal';
+    setActiveUserProfile({
+      email,
+      role: 'team',
+      workspaceTitle: `${teamName || 'Team'} Workspace`,
+    });
+
     setTimeout(() => {
       router.push(`/app/projects/${encodeURIComponent(projectId || 'mock-amazon-cluster')}`);
-    }, 800);
+    }, 600);
   };
 
   const handleAdminSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+
+    const email = adminEmail.trim() || 'admin@acme-corp.com';
+    setActiveUserProfile({
+      email,
+      role: 'admin',
+      workspaceTitle: 'Organization Fleet Admin',
+    });
+
     setTimeout(() => {
       router.push('/app/admin');
-    }, 800);
+    }, 600);
   };
 
   return (
@@ -101,7 +128,7 @@ function LoginContent() {
             Sign In to AutoTrace-Sec
           </h1>
           <p className="mt-2 text-xs text-slate-500 dark:text-zinc-400">
-            Select your authorization tier to access your designated workspace.
+            Select your authorization tier to access your dedicated workspace profile.
           </p>
 
           {/* 3-Tab Tier Selector */}
@@ -158,12 +185,12 @@ function LoginContent() {
             <div>
               <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-100 dark:border-zinc-800/80 text-xs font-semibold text-slate-900 dark:text-white">
                 <User className="w-4 h-4 text-sky-500" />
-                <span>Individual Developer Workspace</span>
+                <span>Dedicated Individual Profile</span>
               </div>
 
               {/* Social Authentication Buttons */}
               <div className="mb-5">
-                <SocialAuthButtons nextUrl="/dashboard" />
+                <SocialAuthButtons nextUrl="/app/projects" />
               </div>
 
               <div className="relative my-4 flex items-center justify-center">
@@ -183,7 +210,7 @@ function LoginContent() {
                     required
                     value={indEmail}
                     onChange={(e) => setIndEmail(e.target.value)}
-                    placeholder="dev@example.com"
+                    placeholder="your-name@example.com"
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500"
                   />
                 </div>
@@ -206,7 +233,7 @@ function LoginContent() {
                   disabled={loading}
                   className="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white dark:bg-sky-500 dark:hover:bg-sky-400 dark:text-zinc-950 font-semibold text-xs transition-colors flex items-center justify-center gap-2 shadow-sm"
                 >
-                  <span>{loading ? 'Authenticating...' : 'Enter Developer Workspace'}</span>
+                  <span>{loading ? 'Authenticating...' : 'Enter Dedicated Workspace'}</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               </form>
@@ -298,23 +325,23 @@ function LoginContent() {
             <div>
               <div className="flex items-center gap-2 mb-2 pb-3 border-b border-slate-100 dark:border-zinc-800/80 text-xs font-semibold text-slate-900 dark:text-white">
                 <ShieldCheck className="w-4 h-4 text-amber-500" />
-                <span>Organization Administrator Portal</span>
+                <span>Enterprise Fleet Administration</span>
               </div>
               <p className="text-[11px] text-slate-500 dark:text-zinc-400 mb-4 leading-relaxed">
-                Single Point of Contact authority. Download telemetry collector binaries, issue team licenses, and manage global cluster fleets.
+                Superuser portal for cluster license keys, SOC2 compliance policies, and team node quota allocations.
               </p>
 
               <form onSubmit={handleAdminSubmit} className="space-y-3.5">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-1">
-                    Admin Work Email *
+                    Administrator Email *
                   </label>
                   <input
                     type="email"
                     required
                     value={adminEmail}
                     onChange={(e) => setAdminEmail(e.target.value)}
-                    placeholder="admin@acme-corp.com"
+                    placeholder="admin@enterprise.internal"
                     className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500"
                   />
                 </div>
@@ -335,13 +362,14 @@ function LoginContent() {
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-1">
-                    MFA / Security Hardware Token
+                    Hardware Security Key / 2FA Token *
                   </label>
                   <input
-                    type="text"
+                    type="password"
+                    required
                     value={adminToken}
                     onChange={(e) => setAdminToken(e.target.value)}
-                    placeholder="6-digit TOTP (e.g. 849201)"
+                    placeholder="YubiKey OTP or Authenticator Code"
                     className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500 font-mono"
                   />
                 </div>
@@ -351,21 +379,21 @@ function LoginContent() {
                   disabled={loading}
                   className="w-full mt-2 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-semibold text-xs transition-colors flex items-center justify-center gap-2 shadow-sm"
                 >
-                  <span>{loading ? 'Authenticating Fleet...' : 'Access Admin Fleet Portal'}</span>
+                  <span>{loading ? 'Authorizing Fleet...' : 'Enter Fleet Admin Console'}</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               </form>
             </div>
           )}
 
-          {/* Bottom Switch to Register */}
-          <div className="mt-6 pt-5 border-t border-slate-100 dark:border-zinc-800/80 text-center text-xs text-slate-500 dark:text-zinc-400">
-            Need to initialize an account?{' '}
-            <Link href="/register" className="text-sky-600 dark:text-sky-400 hover:underline font-medium">
-              Start registration
-            </Link>
-          </div>
+        </div>
 
+        {/* Footer Navigation */}
+        <div className="mt-8 text-center text-xs text-slate-500 dark:text-zinc-400">
+          Don&apos;t have an account yet?{' '}
+          <Link href="/register" className="font-semibold text-slate-900 dark:text-white hover:underline">
+            Request an enterprise evaluation
+          </Link>
         </div>
 
       </div>
@@ -375,11 +403,7 @@ function LoginContent() {
 
 export default function LoginPage() {
   return (
-    <React.Suspense fallback={
-      <div className="flex items-center justify-center min-h-[50vh] text-xs font-mono text-slate-400">
-        Loading authentication desk...
-      </div>
-    }>
+    <React.Suspense fallback={<div className="min-h-screen bg-slate-50 dark:bg-[#07080B]" />}>
       <LoginContent />
     </React.Suspense>
   );

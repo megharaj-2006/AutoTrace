@@ -209,7 +209,7 @@ bpf_map_update_elem(quarantine_corridor_map, &rogue_key, &DROP_RULE, BPF_ANY)
               href="/register"
               className="w-full sm:w-auto px-6 py-3 rounded-xl bg-sky-500 hover:bg-sky-400 text-white dark:text-zinc-950 font-semibold text-xs transition-colors shadow-sm text-center"
             >
-              Start Free Developer Sandbox
+              Start Dedicated Evaluation
             </Link>
             <Link
               href="/pricing"

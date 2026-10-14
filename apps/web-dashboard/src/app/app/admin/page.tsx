@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { 
   ShieldCheck, 
@@ -48,9 +48,9 @@ const INITIAL_TEAMS: TeamAssignment[] = [
   {
     id: 'team-3',
     teamName: 'platform-infra',
-    projectId: 'fintech-payment-pipeline',
+    projectId: 'mock-amazon-cluster',
     memberIdPrefix: 'usr-infra-*',
-    assignedNodes: 8,
+    assignedNodes: 4,
     status: 'ACTIVE',
   },
 ];
@@ -58,8 +58,20 @@ const INITIAL_TEAMS: TeamAssignment[] = [
 export default function OrgAdminFleetPage() {
   const [teams, setTeams] = useState<TeamAssignment[]>(INITIAL_TEAMS);
   const [selectedProjectForCollector, setSelectedProjectForCollector] = useState('mock-amazon-cluster');
+  const [availableProjects, setAvailableProjects] = useState<string[]>(['mock-amazon-cluster']);
   const [copiedScript, setCopiedScript] = useState(false);
   const [isProvisionModalOpen, setIsProvisionModalOpen] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/v1/projects')
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data.projects) && data.projects.length > 0) {
+          setAvailableProjects(data.projects.map((p: any) => p.id));
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Policy toggles
   const [autonomousDrop, setAutonomousDrop] = useState(true);
@@ -152,10 +164,13 @@ curl -sSL https://get.autotrace.io/watchdog.sh | sudo bash -s -- \\
               <select
                 value={selectedProjectForCollector}
                 onChange={(e) => setSelectedProjectForCollector(e.target.value)}
-                className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900 text-xs font-medium text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500"
+                className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900 text-xs font-medium text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500 font-mono"
               >
-                <option value="mock-amazon-cluster">mock-amazon-cluster</option>
-                <option value="fintech-payment-pipeline">fintech-payment-pipeline</option>
+                {availableProjects.map((pId) => (
+                  <option key={pId} value={pId}>
+                    {pId}
+                  </option>
+                ))}
               </select>
             </div>
           </div>
@@ -382,10 +397,13 @@ curl -sSL https://get.autotrace.io/watchdog.sh | sudo bash -s -- \\
                   <select
                     value={newTeam.projectId}
                     onChange={(e) => setNewTeam({ ...newTeam, projectId: e.target.value })}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500 font-mono"
                   >
-                    <option value="mock-amazon-cluster">mock-amazon-cluster</option>
-                    <option value="fintech-payment-pipeline">fintech-payment-pipeline</option>
+                    {availableProjects.map((pId) => (
+                      <option key={pId} value={pId}>
+                        {pId}
+                      </option>
+                    ))}
                   </select>
                 </div>
 

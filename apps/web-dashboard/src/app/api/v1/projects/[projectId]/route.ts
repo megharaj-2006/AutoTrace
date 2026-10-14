@@ -8,7 +8,7 @@ export async function GET(
   { params }: { params: { projectId: string } }
 ) {
   const { projectId } = params;
-  const project = getProjectById(projectId);
+  const project = await getProjectById(projectId);
 
   if (!project) {
     return NextResponse.json({ error: 'Project not found' }, { status: 404 });
@@ -22,7 +22,7 @@ export async function DELETE(
   { params }: { params: { projectId: string } }
 ) {
   const { projectId } = params;
-  const deleted = deleteProject(projectId);
+  const deleted = await deleteProject(projectId);
 
   if (!deleted) {
     return NextResponse.json(

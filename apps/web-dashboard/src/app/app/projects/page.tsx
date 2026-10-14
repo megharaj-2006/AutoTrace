@@ -16,10 +16,12 @@ import {
   CheckCircle2, 
   X, 
   Radio, 
-  ExternalLink
+  ExternalLink,
+  Trash2
 } from 'lucide-react';
 import { ConsoleHeader } from '@/components/console/ConsoleHeader';
 import { DeployWatchdogModal } from '@/components/projects/DeployWatchdogModal';
+import { getActiveUserProfile, UserProfile } from '@/lib/userProfile';
 
 interface ProjectItem {
   id: string;
@@ -33,6 +35,7 @@ interface ProjectItem {
   lastAnomaly: string;
 }
 
+// Exactly ONE default project across all new profiles: The core Mock Amazon Testbed
 const INITIAL_PROJECTS: ProjectItem[] = [
   {
     id: 'mock-amazon-cluster',
@@ -45,33 +48,12 @@ const INITIAL_PROJECTS: ProjectItem[] = [
     baselineStatus: 'A_base Active Invariants',
     lastAnomaly: 'None (100% In-Policy)',
   },
-  {
-    id: 'fintech-payment-pipeline',
-    name: 'FinTech Checkout & Vault Mesh',
-    environment: 'Kubernetes Cluster (Production)',
-    nodesCount: 8,
-    ports: '8443, 9000, 9080',
-    throughputEventsPerSec: 2850,
-    status: 'ACTIVE',
-    baselineStatus: 'A_base Active Invariants',
-    lastAnomaly: 'None',
-  },
-  {
-    id: 'edge-iot-telemetry-gateway',
-    name: 'Edge Ingress Collector Mesh',
-    environment: 'Bare-Metal Linux (systemd)',
-    nodesCount: 2,
-    ports: '8080, 8088',
-    throughputEventsPerSec: 180,
-    status: 'STANDBY',
-    baselineStatus: 'Learning Invariants',
-    lastAnomaly: 'None',
-  },
 ];
 
 export default function IndividualProjectsWorkspacePage() {
   const router = useRouter();
   const [projects, setProjects] = useState<ProjectItem[]>(INITIAL_PROJECTS);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [deployModalProject, setDeployModalProject] = useState<{ id: string; name: string } | null>(null);
@@ -80,43 +62,87 @@ export default function IndividualProjectsWorkspacePage() {
   const [newProject, setNewProject] = useState({
     name: '',
     environment: 'Docker Compose (autotrace-mesh)',
-    nodesCount: 4,
+    nodesCount: 0,
     ports: '5000, 5001, 5002, 5003',
   });
 
-  // Load projects from server API and localStorage with bidirectional sync
+  // Load dedicated user profile and user-scoped projects
   useEffect(() => {
     let isMounted = true;
-    const loadProjects = async () => {
+
+    const initWorkspace = async () => {
+      const profile = await getActiveUserProfile();
+      if (!isMounted) return;
+      setUserProfile(profile);
+
+      const userKey = profile.id || profile.email;
+      const storageKey = `autotrace_projects_${userKey}`;
+
+      // Clean up legacy stale un-scoped cache if present
       try {
-        const res = await fetch('/api/v1/projects');
+        const legacyStale = localStorage.getItem('autotrace_custom_projects');
+        if (legacyStale) {
+          localStorage.removeItem('autotrace_custom_projects');
+        }
+      } catch {}
+
+      // 1. Immediately hydrate from dedicated user-scoped localStorage
+      let activeProjects: ProjectItem[] = INITIAL_PROJECTS;
+      try {
+        const stored = localStorage.getItem(storageKey);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            // Strip out any legacy unwanted dummy projects
+            const filtered = parsed.filter(
+              (p: ProjectItem) =>
+                p.id !== 'fintech-payment-pipeline' && p.id !== 'edge-iot-telemetry-gateway'
+            );
+            // Ensure mock-amazon-cluster always exists as the foundational testbed
+            if (!filtered.some((p) => p.id === 'mock-amazon-cluster')) {
+              filtered.unshift(INITIAL_PROJECTS[0]);
+            }
+            activeProjects = filtered;
+            if (isMounted) {
+              setProjects(activeProjects);
+            }
+          }
+        }
+      } catch {}
+
+      // 2. Sync with backend API
+      try {
+        const endpoint = userKey
+          ? `/api/v1/projects?userId=${encodeURIComponent(userKey)}`
+          : '/api/v1/projects';
+        const res = await fetch(endpoint);
         if (res.ok) {
           const data = await res.json();
           if (isMounted && Array.isArray(data.projects) && data.projects.length > 0) {
-            setProjects(data.projects);
+            const cleanServerProjects: ProjectItem[] = data.projects.filter(
+              (p: any) =>
+                p.id !== 'fintech-payment-pipeline' && p.id !== 'edge-iot-telemetry-gateway'
+            );
+
+            // Merge server projects with cached projects to preserve user creations
+            const mergedMap = new Map<string, ProjectItem>();
+            INITIAL_PROJECTS.forEach((p) => mergedMap.set(p.id, p));
+            activeProjects.forEach((p) => mergedMap.set(p.id, p));
+            cleanServerProjects.forEach((p) => mergedMap.set(p.id, p));
+
+            const merged = Array.from(mergedMap.values());
+            setProjects(merged);
             try {
-              localStorage.setItem('autotrace_custom_projects', JSON.stringify(data.projects));
+              localStorage.setItem(storageKey, JSON.stringify(merged));
             } catch {}
-            return;
           }
         }
       } catch {
         // Network fallback
       }
-
-      // LocalStorage fallback
-      try {
-        const stored = localStorage.getItem('autotrace_custom_projects');
-        if (stored && isMounted) {
-          const parsed: ProjectItem[] = JSON.parse(stored);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            setProjects(parsed);
-          }
-        }
-      } catch {}
     };
 
-    loadProjects();
+    initWorkspace();
     return () => {
       isMounted = false;
     };
@@ -125,6 +151,9 @@ export default function IndividualProjectsWorkspacePage() {
   const handleCreateProject = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newProject.name) return;
+
+    const userKey = userProfile?.id || userProfile?.email || 'default-user';
+    const storageKey = `autotrace_projects_${userKey}`;
 
     let created: ProjectItem = {
       id: newProject.name.toLowerCase().trim().replace(/[^a-z0-9_-]/g, '-'),
@@ -146,6 +175,7 @@ export default function IndividualProjectsWorkspacePage() {
           name: newProject.name,
           environment: newProject.environment,
           ports: newProject.ports,
+          userId: userKey,
         }),
       });
       if (res.ok) {
@@ -162,7 +192,7 @@ export default function IndividualProjectsWorkspacePage() {
     setProjects(updated);
 
     try {
-      localStorage.setItem('autotrace_custom_projects', JSON.stringify(updated));
+      localStorage.setItem(storageKey, JSON.stringify(updated));
     } catch {}
 
     setIsCreateModalOpen(false);
@@ -175,6 +205,31 @@ export default function IndividualProjectsWorkspacePage() {
     });
   };
 
+  const handleDeleteProject = async (projectId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (projectId === 'mock-amazon-cluster') return;
+
+    if (!confirm('Are you sure you want to delete this microservice workspace?')) {
+      return;
+    }
+
+    try {
+      await fetch(`/api/v1/projects/${encodeURIComponent(projectId)}`, {
+        method: 'DELETE',
+      });
+    } catch {}
+
+    const updated = projects.filter((p) => p.id !== projectId);
+    setProjects(updated);
+
+    const userKey = userProfile?.id || userProfile?.email || 'default-user';
+    const storageKey = `autotrace_projects_${userKey}`;
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(updated));
+    } catch {}
+  };
+
   const filteredProjects = projects.filter((p) =>
     p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     p.id.toLowerCase().includes(searchQuery.toLowerCase())
@@ -184,7 +239,7 @@ export default function IndividualProjectsWorkspacePage() {
     <div className="min-h-screen flex flex-col bg-slate-50/50 dark:bg-[#07080B] text-slate-900 dark:text-zinc-100 transition-colors">
       
       {/* Console Top Navigation Bar */}
-      <ConsoleHeader currentProjectName="All Workspaces" role="individual" />
+      <ConsoleHeader currentProjectName="My Workspaces" role="individual" />
 
       {/* Main Workspace Body */}
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
@@ -194,13 +249,13 @@ export default function IndividualProjectsWorkspacePage() {
           <div>
             <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 border border-slate-200 text-slate-700 dark:bg-zinc-950 dark:border-zinc-800 dark:text-zinc-300 dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.08)] mb-2">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-              <span>Developer Workspace</span>
+              <span>{userProfile?.name ? `${userProfile.name}'s Dedicated Workspace` : 'Dedicated Workspace'}</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-slate-900 dark:text-white">
-              Microservice Workspaces
+              {userProfile?.name ? `${userProfile.name}'s Microservice Fleet` : 'Microservice Workspaces'}
             </h1>
             <p className="text-xs sm:text-sm text-slate-500 dark:text-zinc-400 mt-1 font-normal">
-              Manage your monitored microservice clusters, eBPF telemetry pipelines, and GAT root-cause environments.
+              Dedicated cluster environments, watchdog nodes, and telemetry topologies for {userProfile?.email || 'your account'}.
             </p>
           </div>
 
@@ -283,27 +338,39 @@ export default function IndividualProjectsWorkspacePage() {
               <div>
                 {/* Project Header */}
                 <div className="flex items-start justify-between gap-2 mb-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-lg bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-600 dark:text-sky-400">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="w-8 h-8 rounded-lg bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-600 dark:text-sky-400 shrink-0">
                       <Server className="w-4 h-4" />
                     </div>
-                    <div>
-                      <h3 className="text-base font-semibold text-slate-900 dark:text-white group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors">
+                    <div className="min-w-0">
+                      <h3 className="text-base font-semibold text-slate-900 dark:text-white group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors truncate">
                         {project.name}
                       </h3>
-                      <span className="text-[11px] text-slate-400 dark:text-zinc-500">
+                      <span className="text-[11px] text-slate-400 dark:text-zinc-500 font-mono truncate block">
                         {project.id}
                       </span>
                     </div>
                   </div>
 
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
-                    project.status === 'ACTIVE'
-                      ? 'bg-emerald-50 border-emerald-200 text-emerald-700 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300'
-                      : 'bg-slate-100 border-slate-200 text-slate-700 dark:bg-zinc-900 dark:border-zinc-800 dark:text-zinc-300'
-                  }`}>
-                    {project.status}
-                  </span>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
+                      project.status === 'ACTIVE'
+                        ? 'bg-emerald-50 border-emerald-200 text-emerald-700 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300'
+                        : 'bg-slate-100 border-slate-200 text-slate-700 dark:bg-zinc-900 dark:border-zinc-800 dark:text-zinc-300'
+                    }`}>
+                      {project.status}
+                    </span>
+
+                    {project.id !== 'mock-amazon-cluster' && (
+                      <button
+                        onClick={(e) => handleDeleteProject(project.id, e)}
+                        title="Delete project workspace"
+                        className="p-1 rounded-lg text-slate-400 hover:text-rose-500 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 <div className="text-xs text-slate-500 dark:text-zinc-400 mb-4 font-normal">
@@ -393,11 +460,11 @@ export default function IndividualProjectsWorkspacePage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block font-medium text-slate-700 dark:text-zinc-300 mb-1.5">
-                      Watchdog Nodes Count
+                      Initial Nodes Count
                     </label>
                     <input
                       type="number"
-                      min="1"
+                      min="0"
                       max="30"
                       value={newProject.nodesCount}
                       onChange={(e) => setNewProject({ ...newProject, nodesCount: Number(e.target.value) })}

@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { setActiveUserProfile } from '@/lib/userProfile';
 
 export function AuthCallbackListener() {
   const router = useRouter();
@@ -13,7 +14,6 @@ export function AuthCallbackListener() {
     if (typeof window === 'undefined') return;
 
     // 1. Intercept OAuth 'code' on pages other than /auth/callback
-    // (This happens if Supabase redirects to the site root or /login because the allowed URL was configured without /auth/callback)
     const code = searchParams.get('code');
     if (code && pathname !== '/auth/callback') {
       const next = searchParams.get('next') || '/app/projects';
@@ -33,7 +33,6 @@ export function AuthCallbackListener() {
         const errorDesc = params.get('error_description') || params.get('error');
         if (errorDesc) {
           console.warn('[AuthCallbackListener] OAuth error in URL hash:', errorDesc);
-          // Clear hash and route to login with safe error
           window.history.replaceState(null, '', window.location.pathname);
           router.replace(`/login?error=${encodeURIComponent(errorDesc)}`);
           return;
@@ -49,10 +48,21 @@ export function AuthCallbackListener() {
               access_token: accessToken,
               refresh_token: refreshToken,
             })
-            .then(({ error }) => {
-              // Clean hash from address bar
+            .then(async ({ error }) => {
               window.history.replaceState(null, '', window.location.pathname);
               if (!error) {
+                try {
+                  const { data: { user } } = await supabase.auth.getUser();
+                  if (user && user.email) {
+                    setActiveUserProfile({
+                      id: user.id,
+                      email: user.email,
+                      name: user.user_metadata?.full_name || user.user_metadata?.name || user.email.split('@')[0],
+                      avatarUrl: user.user_metadata?.avatar_url || user.user_metadata?.picture || null,
+                      role: 'individual',
+                    });
+                  }
+                } catch {}
                 router.replace('/app/projects');
               } else {
                 router.replace(`/login?error=${encodeURIComponent(error.message)}`);
