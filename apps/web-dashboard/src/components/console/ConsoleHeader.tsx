@@ -84,8 +84,17 @@ export function ConsoleHeader({ currentProjectName, projectId, role = 'individua
         });
     });
 
+    const handleProfileUpdate = (e: Event) => {
+      const customEvt = e as CustomEvent<UserProfile | null>;
+      if (customEvt.detail && isMounted) {
+        setUserProfile(customEvt.detail);
+      }
+    };
+    window.addEventListener('autotrace_profile_updated', handleProfileUpdate);
+
     return () => {
       isMounted = false;
+      window.removeEventListener('autotrace_profile_updated', handleProfileUpdate);
     };
   }, []);
 
@@ -351,19 +360,27 @@ export function ConsoleHeader({ currentProjectName, projectId, role = 'individua
                 aria-label="User Profile Menu"
                 title="View & Manage User Profile"
               >
-                {userProfile.avatarUrl ? (
-                  <Image
-                    src={userProfile.avatarUrl}
-                    alt={userProfile.name}
-                    width={28}
-                    height={28}
-                    className="w-7 h-7 rounded-full object-cover border border-sky-500/40 shadow-xs group-hover:ring-2 group-hover:ring-sky-500/50 transition-all"
-                  />
-                ) : (
-                  <div className="w-7 h-7 rounded-full bg-sky-500/10 border border-sky-500/30 flex items-center justify-center text-xs font-semibold text-sky-600 dark:text-sky-400 group-hover:scale-105 transition-transform">
-                    {userProfile.initials}
-                  </div>
-                )}
+                {(() => {
+                  const displayImg = userProfile.activeDisplayMode === 'photo'
+                    ? (userProfile.photoUrl || userProfile.avatarUrl)
+                    : (userProfile.avatarUrl || userProfile.photoUrl);
+                  return displayImg ? (
+                    <div className="w-7 h-7 rounded-full overflow-hidden relative border border-sky-500/40 shadow-xs group-hover:ring-2 group-hover:ring-sky-500/50 transition-all bg-slate-900">
+                      <Image
+                        src={displayImg}
+                        alt={userProfile.name}
+                        fill
+                        sizes="28px"
+                        unoptimized
+                        className="object-cover"
+                      />
+                    </div>
+                  ) : (
+                    <div className="w-7 h-7 rounded-full bg-sky-500/10 border border-sky-500/30 flex items-center justify-center text-xs font-semibold text-sky-600 dark:text-sky-400 group-hover:scale-105 transition-transform">
+                      {userProfile.initials}
+                    </div>
+                  );
+                })()}
               </button>
 
               {isUserMenuOpen && (
@@ -375,19 +392,27 @@ export function ConsoleHeader({ currentProjectName, projectId, role = 'individua
                     className="block p-3 rounded-xl bg-slate-50 dark:bg-zinc-900/70 border border-slate-200/80 dark:border-zinc-800/80 hover:border-sky-500/50 hover:bg-slate-100 dark:hover:bg-zinc-900 transition-all mb-1 group"
                   >
                     <div className="flex items-center gap-2.5 mb-2">
-                      {userProfile.avatarUrl ? (
-                        <Image
-                          src={userProfile.avatarUrl}
-                          alt={userProfile.name}
-                          width={36}
-                          height={36}
-                          className="w-9 h-9 rounded-xl object-cover border border-sky-500/40 shadow-xs"
-                        />
-                      ) : (
-                        <div className="w-9 h-9 rounded-xl bg-sky-500/10 border border-sky-500/30 flex items-center justify-center text-xs font-bold text-sky-600 dark:text-sky-400">
-                          {userProfile.initials}
-                        </div>
-                      )}
+                      {(() => {
+                        const cardImg = userProfile.activeDisplayMode === 'photo'
+                          ? (userProfile.photoUrl || userProfile.avatarUrl)
+                          : (userProfile.avatarUrl || userProfile.photoUrl);
+                        return cardImg ? (
+                          <div className="w-9 h-9 rounded-xl overflow-hidden relative border border-sky-500/40 shadow-xs bg-slate-900 shrink-0">
+                            <Image
+                              src={cardImg}
+                              alt={userProfile.name}
+                              fill
+                              sizes="36px"
+                              unoptimized
+                              className="object-cover"
+                            />
+                          </div>
+                        ) : (
+                          <div className="w-9 h-9 rounded-xl bg-sky-500/10 border border-sky-500/30 flex items-center justify-center text-xs font-bold text-sky-600 dark:text-sky-400 shrink-0">
+                            {userProfile.initials}
+                          </div>
+                        );
+                      })()}
                       <div className="min-w-0 flex-1">
                         <div className="font-semibold text-slate-900 dark:text-white truncate group-hover:text-sky-500 transition-colors">
                           {userProfile.name}
@@ -397,6 +422,13 @@ export function ConsoleHeader({ currentProjectName, projectId, role = 'individua
                         </div>
                       </div>
                     </div>
+                    {userProfile.role === 'team' && userProfile.teamRole && (
+                      <div className="mb-2">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-indigo-50 text-indigo-700 dark:bg-indigo-950/70 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+                          🔒 Team: {userProfile.teamRole}
+                        </span>
+                      </div>
+                    )}
                     {userProfile.headline && (
                       <div className="text-[11px] text-slate-600 dark:text-zinc-300 line-clamp-1 mb-2 font-normal">
                         {userProfile.headline}

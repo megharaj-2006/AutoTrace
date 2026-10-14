@@ -25,15 +25,16 @@ import {
   Save, 
   Sun, 
   Moon, 
-  Monitor, 
-  Bell, 
-  Volume2, 
   Key, 
-  Radio, 
   Check,
   RefreshCw,
   Camera,
-  ArrowRight
+  ArrowRight,
+  Lock,
+  Bot,
+  Image as ImageIcon,
+  X,
+  Repeat
 } from 'lucide-react';
 import { ConsoleHeader } from '@/components/console/ConsoleHeader';
 import { useTheme } from '@/components/theme/ThemeProvider';
@@ -42,13 +43,15 @@ import {
   saveActiveUserProfile, 
   UserProfile, 
   DEFAULT_PROFILE, 
-  AVATAR_PRESETS 
+  PHOTO_PRESETS,
+  DIGITAL_AVATAR_PRESETS,
+  BANNER_PRESETS
 } from '@/lib/userProfile';
 
 function ProfilePageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const initialTab = searchParams.get('tab') || 'overview';
+  const tabFromQuery = searchParams.get('tab');
 
   const { theme, setTheme, dotMatrixEnabled, toggleDotMatrix } = useTheme();
 
@@ -58,36 +61,66 @@ function ProfilePageInner() {
   const [skillsInput, setSkillsInput] = useState<string>('');
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [copiedToken, setCopiedToken] = useState(false);
   const [apiToken, setApiToken] = useState('at_sec_live_98a7f43b6c1e92d0');
+  
+  // Instagram style flip display (photo vs avatar)
+  const [activeDisplay, setActiveDisplay] = useState<'photo' | 'avatar'>('avatar');
 
+  // Handle URL tab changes & direct edit triggers
   useEffect(() => {
-    if (initialTab === 'edit' || initialTab === 'settings') {
-      setActiveTab(initialTab);
+    if (tabFromQuery === 'edit') {
+      setActiveTab('edit');
+      setIsEditModalOpen(true);
+    } else if (tabFromQuery === 'settings') {
+      setActiveTab('settings');
     } else {
       setActiveTab('overview');
     }
-  }, [initialTab]);
+  }, [tabFromQuery]);
 
+  // Load and listen for profile updates
   useEffect(() => {
     let isMounted = true;
-    getActiveUserProfile().then((p) => {
+
+    const loadProfile = (p: UserProfile) => {
       if (!isMounted) return;
       setProfile(p);
       setFormData(p);
-      setSkillsInput(p.skills.join(', '));
-      // Deterministic API token based on user id/email
+      setSkillsInput(p.skills ? p.skills.join(', ') : '');
+      setActiveDisplay(p.activeDisplayMode || (p.photoUrl ? 'photo' : 'avatar'));
+
       const hash = (p.id || p.email)
         .split('')
         .reduce((acc, char) => (acc << 5) - acc + char.charCodeAt(0), 0)
         .toString(16)
         .replace('-', 'f');
       setApiToken(`at_sec_live_${hash.padEnd(16, 'a').slice(0, 16)}`);
-    });
+    };
+
+    getActiveUserProfile().then(loadProfile);
+
+    const handleProfileUpdate = (e: Event) => {
+      const customEvt = e as CustomEvent<UserProfile | null>;
+      if (customEvt.detail) {
+        loadProfile(customEvt.detail);
+      }
+    };
+
+    window.addEventListener('autotrace_profile_updated', handleProfileUpdate);
     return () => {
       isMounted = false;
+      window.removeEventListener('autotrace_profile_updated', handleProfileUpdate);
     };
   }, []);
+
+  const handleOpenEdit = () => {
+    setFormData(profile);
+    setSkillsInput(profile.skills ? profile.skills.join(', ') : '');
+    setIsEditModalOpen(true);
+    setActiveTab('edit');
+  };
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -101,13 +134,23 @@ function ProfilePageInner() {
     const updated = await saveActiveUserProfile({
       ...formData,
       skills: skillsArray,
+      activeDisplayMode: activeDisplay,
     });
 
     setProfile(updated);
     setFormData(updated);
     setIsSaving(false);
     setSaveSuccess(true);
-    setTimeout(() => setSaveSuccess(false), 3000);
+    setIsEditModalOpen(false);
+    setTimeout(() => setSaveSuccess(false), 3500);
+  };
+
+  const toggleDisplayMode = async () => {
+    const nextMode = activeDisplay === 'photo' ? 'avatar' : 'photo';
+    setActiveDisplay(nextMode);
+    setFormData((prev) => ({ ...prev, activeDisplayMode: nextMode }));
+    const updated = await saveActiveUserProfile({ activeDisplayMode: nextMode });
+    setProfile(updated);
   };
 
   const handleCopyToken = () => {
@@ -123,20 +166,56 @@ function ProfilePageInner() {
     setApiToken(`at_sec_live_${randomHex}`);
   };
 
+  // Determine current active display image
+  const primaryDisplayImage =
+    activeDisplay === 'photo'
+      ? profile.photoUrl || profile.avatarUrl
+      : profile.avatarUrl || profile.photoUrl;
+
+  const secondaryDisplayImage =
+    activeDisplay === 'photo' ? profile.avatarUrl : profile.photoUrl;
+
   return (
     <div className="min-h-screen flex flex-col bg-slate-50/50 dark:bg-[#07080B] text-slate-900 dark:text-zinc-100 transition-colors">
       <ConsoleHeader currentProjectName="User Profile" role={profile.role} />
 
       <main className="flex-1 max-w-6xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 sm:py-10">
         
-        {/* PROFILE HERO HEADER (GITHUB + LINKEDIN STYLE COVER & AVATAR) */}
+        {/* GLOBAL SAVE SUCCESS NOTIFICATION */}
+        {saveSuccess && (
+          <div className="mb-6 p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-xs text-emerald-800 dark:text-emerald-200 flex items-center justify-between shadow-sm animate-in fade-in duration-150">
+            <div className="flex items-center gap-2.5">
+              <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+              <span>
+                <strong>Profile updated successfully!</strong> Changes have synced across your session, workspace, and account identity.
+              </span>
+            </div>
+            <button
+              onClick={() => setSaveSuccess(false)}
+              className="text-emerald-600 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-200 text-xs font-semibold"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+
+        {/* PROFILE HERO HEADER (GITHUB + LINKEDIN STYLE COVER & INSTAGRAM-STYLE PHOTO + AVATAR) */}
         <div className="relative rounded-2xl sm:rounded-3xl border border-slate-200/80 dark:border-white/[0.08] bg-white/70 dark:bg-[#0B0D13]/85 backdrop-blur-2xl overflow-hidden shadow-sm dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06),0_16px_40px_rgba(0,0,0,0.4)] mb-8">
           
           {/* Cover Art Banner */}
-          <div className="h-32 sm:h-44 w-full bg-gradient-to-r from-sky-600 via-indigo-600 to-slate-900 relative">
+          <div 
+            className="h-32 sm:h-48 w-full relative bg-cover bg-center transition-all duration-300"
+            style={{
+              backgroundImage: profile.bannerUrl
+                ? `url(${profile.bannerUrl})`
+                : 'linear-gradient(to right, #0284c7, #4f46e5, #0f172a)'
+            }}
+          >
+            <div className="absolute inset-0 bg-black/25 backdrop-blur-[1px]"></div>
             <div className="absolute inset-0 bg-[radial-gradient(#ffffff15_1px,transparent_1px)] [background-size:16px_16px] opacity-40"></div>
+            
             <div className="absolute top-3 right-3 sm:top-4 sm:right-4 flex items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-black/40 backdrop-blur-md text-white border border-white/10">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-black/50 backdrop-blur-md text-white border border-white/10 shadow-sm">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
                 <span>Active Telemetry Profile</span>
               </span>
@@ -145,33 +224,71 @@ function ProfilePageInner() {
 
           {/* Profile Identity Bar */}
           <div className="px-5 sm:px-8 pb-6 pt-0 relative">
-            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 -mt-14 sm:-mt-16 mb-4">
+            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 -mt-16 sm:-mt-20 mb-4">
               
-              {/* Avatar + Main Info */}
-              <div className="flex flex-col sm:flex-row items-center sm:items-end gap-4 text-center sm:text-left">
+              {/* Instagram-style Photo + Avatar Container */}
+              <div className="flex flex-col sm:flex-row items-center sm:items-end gap-5 text-center sm:text-left">
+                
+                {/* Photo & Digital Avatar Interactive Stack */}
                 <div className="relative group shrink-0">
-                  {profile.avatarUrl ? (
-                    <Image
-                      src={profile.avatarUrl}
-                      alt={profile.name}
-                      width={112}
-                      height={112}
-                      className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl object-cover border-4 border-white dark:border-[#0B0D13] shadow-lg ring-1 ring-black/10"
-                    />
+                  {primaryDisplayImage ? (
+                    <div className="relative w-28 h-28 sm:w-32 sm:h-32 rounded-2xl overflow-hidden border-4 border-white dark:border-[#0B0D13] shadow-xl ring-1 ring-black/10 bg-slate-900">
+                      <Image
+                        src={primaryDisplayImage}
+                        alt={profile.name}
+                        fill
+                        sizes="128px"
+                        unoptimized
+                        className="object-cover transition-transform duration-300 group-hover:scale-105"
+                      />
+                    </div>
                   ) : (
-                    <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl bg-gradient-to-br from-sky-500 to-indigo-600 border-4 border-white dark:border-[#0B0D13] shadow-lg flex items-center justify-center text-3xl font-bold text-white">
+                    <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-2xl bg-gradient-to-br from-sky-500 to-indigo-600 border-4 border-white dark:border-[#0B0D13] shadow-xl flex items-center justify-center text-3xl font-bold text-white">
                       {profile.initials}
                     </div>
                   )}
+
+                  {/* Instagram-style Floating Secondary Avatar Badge */}
+                  {secondaryDisplayImage && (
+                    <button
+                      type="button"
+                      onClick={toggleDisplayMode}
+                      className="absolute -top-2 -left-2 w-9 h-9 sm:w-10 sm:h-10 rounded-full border-2 border-white dark:border-[#0B0D13] shadow-lg overflow-hidden bg-white dark:bg-zinc-800 hover:scale-110 transition-transform cursor-pointer"
+                      title={`Switch view to ${activeDisplay === 'photo' ? 'Digital Avatar' : 'Profile Photo'}`}
+                    >
+                      <Image
+                        src={secondaryDisplayImage}
+                        alt="Companion Avatar"
+                        fill
+                        sizes="40px"
+                        unoptimized
+                        className="object-cover"
+                      />
+                    </button>
+                  )}
+
+                  {/* Flip / Switch View Button */}
                   <button
-                    onClick={() => setActiveTab('edit')}
-                    className="absolute -bottom-1 -right-1 p-2 rounded-xl bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 shadow-md text-slate-700 dark:text-zinc-200 hover:text-sky-500 dark:hover:text-sky-400 transition-colors"
-                    title="Change Avatar"
+                    type="button"
+                    onClick={toggleDisplayMode}
+                    className="absolute -bottom-2 -left-2 px-2 py-0.5 rounded-full bg-slate-900/90 hover:bg-slate-800 text-white border border-white/20 text-[10px] font-medium flex items-center gap-1 shadow-md backdrop-blur-md transition-all"
+                    title="Toggle between Profile Photo and Digital Avatar"
+                  >
+                    <Repeat className="w-2.5 h-2.5" />
+                    <span>{activeDisplay === 'photo' ? 'Show Avatar' : 'Show Photo'}</span>
+                  </button>
+
+                  {/* Edit Photo & Avatar Trigger */}
+                  <button
+                    onClick={handleOpenEdit}
+                    className="absolute -bottom-2 -right-2 p-2 rounded-xl bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 shadow-lg text-slate-700 dark:text-zinc-200 hover:text-sky-500 dark:hover:text-sky-400 transition-colors"
+                    title="Edit Profile, Photo & Avatar"
                   >
                     <Camera className="w-3.5 h-3.5" />
                   </button>
                 </div>
 
+                {/* Identity Text & Badges */}
                 <div className="min-w-0 pb-1">
                   <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 mb-1">
                     <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white truncate">
@@ -182,13 +299,37 @@ function ProfilePageInner() {
                         ({profile.pronouns})
                       </span>
                     )}
+
+                    {/* Account Type Classification Badge */}
                     <span className="px-2 py-0.5 rounded-md text-[11px] font-medium bg-sky-50 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300 border border-sky-200 dark:border-sky-800">
-                      {profile.role === 'admin' ? 'Org Admin (SPOC)' : 'Individual Developer'}
+                      {profile.role === 'admin' 
+                        ? 'Org Admin (SPOC)' 
+                        : profile.role === 'team' 
+                        ? 'Team Member' 
+                        : 'Individual Developer'}
                     </span>
+
+                    {/* Organizational Team Role Tag: STRICT RULE - Only for team members! */}
+                    {profile.role === 'team' && profile.teamRole && (
+                      <span 
+                        className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[11px] font-semibold bg-indigo-50 text-indigo-700 dark:bg-indigo-950/70 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 shadow-xs"
+                        title="Assigned by Organization Admin. Uneditable by team member."
+                      >
+                        <Lock className="w-3 h-3 text-indigo-500" />
+                        <span>Team Role: {profile.teamRole}</span>
+                      </span>
+                    )}
                   </div>
 
-                  <div className="text-xs sm:text-sm font-mono text-slate-500 dark:text-zinc-400 mb-2">
-                    @{profile.username}
+                  <div className="text-xs sm:text-sm font-mono text-slate-500 dark:text-zinc-400 mb-2 flex items-center justify-center sm:justify-start gap-2">
+                    <span>@{profile.username}</span>
+                    <button
+                      onClick={handleOpenEdit}
+                      className="text-[11px] text-sky-500 hover:underline flex items-center gap-0.5"
+                    >
+                      <Edit3 className="w-2.5 h-2.5" />
+                      <span>Edit Handle</span>
+                    </button>
                   </div>
 
                   <p className="text-xs sm:text-sm font-medium text-slate-700 dark:text-zinc-200 max-w-xl">
@@ -200,12 +341,9 @@ function ProfilePageInner() {
               {/* Action Buttons */}
               <div className="flex items-center justify-center sm:justify-end gap-2.5 shrink-0 pt-2 sm:pt-0">
                 <button
-                  onClick={() => setActiveTab('edit')}
-                  className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all border shadow-xs ${
-                    activeTab === 'edit'
-                      ? 'bg-sky-500 text-white border-sky-500'
-                      : 'bg-white dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-800'
-                  }`}
+                  type="button"
+                  onClick={handleOpenEdit}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-sky-500 hover:bg-sky-400 text-zinc-950 transition-all shadow-sm cursor-pointer"
                 >
                   <Edit3 className="w-3.5 h-3.5" />
                   <span>Edit Profile</span>
@@ -295,7 +433,11 @@ function ProfilePageInner() {
             </button>
 
             <button
-              onClick={() => setActiveTab('edit')}
+              onClick={() => {
+                setActiveTab('edit');
+                setFormData(profile);
+                setSkillsInput(profile.skills ? profile.skills.join(', ') : '');
+              }}
               className={`flex items-center gap-2 py-3 px-4 border-b-2 text-xs font-semibold whitespace-nowrap transition-colors ${
                 activeTab === 'edit'
                   ? 'border-sky-500 text-sky-600 dark:text-sky-400'
@@ -330,10 +472,19 @@ function ProfilePageInner() {
               
               {/* About & Bio Card */}
               <div className="p-6 rounded-2xl border border-slate-200/80 dark:border-white/[0.08] bg-white/70 dark:bg-[#0B0D13]/85 backdrop-blur-2xl shadow-sm">
-                <h2 className="text-sm font-semibold text-slate-900 dark:text-white mb-3 flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-sky-500" />
-                  <span>Engineering Profile & Bio</span>
-                </h2>
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-sky-500" />
+                    <span>Engineering Profile & Bio</span>
+                  </h2>
+                  <button
+                    onClick={handleOpenEdit}
+                    className="text-xs text-sky-500 hover:underline flex items-center gap-1"
+                  >
+                    <Edit3 className="w-3 h-3" />
+                    <span>Edit Bio</span>
+                  </button>
+                </div>
                 <p className="text-xs sm:text-sm text-slate-700 dark:text-zinc-300 leading-relaxed whitespace-pre-line">
                   {profile.bio || 'No engineering biography provided yet. Click "Edit Profile" to add your bio.'}
                 </p>
@@ -347,10 +498,11 @@ function ProfilePageInner() {
                     <span>Skills, Architecture & Frameworks</span>
                   </h2>
                   <button
-                    onClick={() => setActiveTab('edit')}
-                    className="text-xs text-sky-500 hover:underline"
+                    onClick={handleOpenEdit}
+                    className="text-xs text-sky-500 hover:underline flex items-center gap-1"
                   >
-                    + Add Skills
+                    <Edit3 className="w-3 h-3" />
+                    <span>Edit Skills</span>
                   </button>
                 </div>
 
@@ -370,6 +522,39 @@ function ProfilePageInner() {
                   )}
                 </div>
               </div>
+
+              {/* Organizational Role & Team Details (ONLY FOR TEAM MEMBERS) */}
+              {profile.role === 'team' && (
+                <div className="p-6 rounded-2xl border border-indigo-200/80 dark:border-indigo-900/50 bg-indigo-50/40 dark:bg-indigo-950/20 backdrop-blur-2xl shadow-sm">
+                  <div className="flex items-center justify-between mb-3">
+                    <h2 className="text-sm font-semibold text-indigo-950 dark:text-indigo-200 flex items-center gap-2">
+                      <Lock className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                      <span>Organizational Team Membership</span>
+                    </h2>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-indigo-100 text-indigo-800 dark:bg-indigo-900/60 dark:text-indigo-300 border border-indigo-300 dark:border-indigo-700">
+                      Managed by Org Admin
+                    </span>
+                  </div>
+                  <p className="text-xs text-indigo-900/80 dark:text-indigo-300/80 mb-3 leading-relaxed">
+                    You are an enrolled team member of an enterprise organization. Your team assignment and authorization permissions are administered centrally.
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                    <div className="p-3 rounded-xl bg-white dark:bg-zinc-900 border border-indigo-200 dark:border-zinc-800">
+                      <span className="text-[10px] uppercase font-mono text-slate-400 block mb-0.5">Assigned Team Role</span>
+                      <span className="font-semibold text-slate-900 dark:text-white flex items-center gap-1.5">
+                        <Lock className="w-3 h-3 text-slate-400" />
+                        {profile.teamRole || 'Platform SRE Lead'}
+                      </span>
+                    </div>
+                    <div className="p-3 rounded-xl bg-white dark:bg-zinc-900 border border-indigo-200 dark:border-zinc-800">
+                      <span className="text-[10px] uppercase font-mono text-slate-400 block mb-0.5">Assigned Fleet Team</span>
+                      <span className="font-semibold text-slate-900 dark:text-white">
+                        {profile.teamName || 'core-platform'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Dedicated Fleet Cluster Status */}
               <div className="p-6 rounded-2xl border border-slate-200/80 dark:border-white/[0.08] bg-white/70 dark:bg-[#0B0D13]/85 backdrop-blur-2xl shadow-sm">
@@ -452,10 +637,19 @@ function ProfilePageInner() {
 
               {/* Connected Accounts Card */}
               <div className="p-6 rounded-2xl border border-slate-200/80 dark:border-white/[0.08] bg-white/70 dark:bg-[#0B0D13]/85 backdrop-blur-2xl shadow-sm">
-                <h2 className="text-sm font-semibold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
-                  <Globe className="w-4 h-4 text-slate-400" />
-                  <span>Connected Identifiers</span>
-                </h2>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                    <Globe className="w-4 h-4 text-slate-400" />
+                    <span>Connected Identifiers</span>
+                  </h2>
+                  <button
+                    onClick={handleOpenEdit}
+                    className="text-xs text-sky-500 hover:underline flex items-center gap-1"
+                  >
+                    <Edit3 className="w-3 h-3" />
+                    <span>Edit</span>
+                  </button>
+                </div>
 
                 <div className="space-y-3">
                   <div className="flex items-center justify-between p-2.5 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-900/50">
@@ -474,7 +668,7 @@ function ProfilePageInner() {
                       </span>
                     ) : (
                       <button
-                        onClick={() => setActiveTab('edit')}
+                        onClick={handleOpenEdit}
                         className="text-[10px] font-medium text-sky-500 hover:underline"
                       >
                         Connect
@@ -498,7 +692,7 @@ function ProfilePageInner() {
                       </span>
                     ) : (
                       <button
-                        onClick={() => setActiveTab('edit')}
+                        onClick={handleOpenEdit}
                         className="text-[10px] font-medium text-sky-500 hover:underline"
                       >
                         Connect
@@ -513,70 +707,193 @@ function ProfilePageInner() {
           </div>
         )}
 
-        {/* TAB 2: EDIT PROFILE */}
+        {/* TAB 2: EDIT PROFILE FORM */}
         {activeTab === 'edit' && (
           <form onSubmit={handleSaveProfile} className="space-y-6">
             
-            {saveSuccess && (
-              <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-xs text-emerald-800 dark:text-emerald-200 flex items-center gap-2 animate-in fade-in duration-150">
-                <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                <span>Profile updated successfully! Changes have synced to your local session and account metadata.</span>
+            {/* Real Profile Photo & Digital Mascot Avatar Studio (Instagram Style) */}
+            <div className="p-6 rounded-2xl border border-slate-200/80 dark:border-white/[0.08] bg-white/70 dark:bg-[#0B0D13]/85 backdrop-blur-2xl shadow-sm space-y-6">
+              <div>
+                <h2 className="text-sm font-semibold text-slate-900 dark:text-white mb-1 flex items-center gap-2">
+                  <Camera className="w-4 h-4 text-sky-500" />
+                  <span>Profile Photo &amp; Digital Avatar Studio</span>
+                </h2>
+                <p className="text-xs text-slate-500 dark:text-zinc-400">
+                  Configure both a real portrait photo and a stylized digital mascot avatar (like Instagram). Choose which one displays as your primary badge.
+                </p>
               </div>
-            )}
 
-            {/* Avatar & Photo Selection */}
-            <div className="p-6 rounded-2xl border border-slate-200/80 dark:border-white/[0.08] bg-white/70 dark:bg-[#0B0D13]/85 backdrop-blur-2xl shadow-sm">
-              <h2 className="text-sm font-semibold text-slate-900 dark:text-white mb-2">
-                Profile Avatar & Photo
-              </h2>
-              <p className="text-xs text-slate-500 dark:text-zinc-400 mb-4">
-                Choose a pre-configured engineering avatar or enter a custom image URL.
-              </p>
-
-              <div className="flex flex-wrap items-center gap-3 mb-4">
-                {AVATAR_PRESETS.map((preset) => (
+              {/* Display Mode Selection Pill */}
+              <div className="p-4 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50/60 dark:bg-zinc-900/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <div className="text-xs font-semibold text-slate-900 dark:text-white">
+                    Primary Display Badge
+                  </div>
+                  <div className="text-[11px] text-slate-500 dark:text-zinc-400">
+                    Switch which image represents you on headers, workspaces, and telemetry topologies.
+                  </div>
+                </div>
+                <div className="inline-flex p-1 rounded-xl bg-slate-200/70 dark:bg-zinc-800 border border-slate-300/80 dark:border-zinc-700">
                   <button
-                    key={preset.id}
                     type="button"
-                    onClick={() => setFormData({ ...formData, avatarUrl: preset.url })}
-                    className={`flex items-center gap-2 p-1.5 pr-3 rounded-xl border transition-all ${
-                      formData.avatarUrl === preset.url
-                        ? 'border-sky-500 bg-sky-50 dark:bg-sky-950/40 shadow-xs'
-                        : 'border-slate-200 dark:border-zinc-800 hover:border-slate-300'
+                    onClick={() => setActiveDisplay('photo')}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                      activeDisplay === 'photo'
+                        ? 'bg-white text-slate-900 shadow-sm'
+                        : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900'
                     }`}
                   >
-                    <Image
-                      src={preset.url}
-                      alt={preset.label}
-                      width={32}
-                      height={32}
-                      className="w-8 h-8 rounded-lg object-cover"
-                    />
-                    <span className="text-xs font-medium text-slate-700 dark:text-zinc-300">
-                      {preset.label}
-                    </span>
+                    <ImageIcon className="w-3.5 h-3.5 text-sky-500" />
+                    <span>Real Photo</span>
                   </button>
-                ))}
+                  <button
+                    type="button"
+                    onClick={() => setActiveDisplay('avatar')}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                      activeDisplay === 'avatar'
+                        ? 'bg-white text-slate-900 shadow-sm'
+                        : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900'
+                    }`}
+                  >
+                    <Bot className="w-3.5 h-3.5 text-emerald-500" />
+                    <span>Digital Avatar</span>
+                  </button>
+                </div>
               </div>
 
+              {/* SECTION A: DIGITAL MASCOT AVATARS */}
               <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-1.5">
-                  Or Custom Avatar Image URL
+                <label className="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-2 flex items-center gap-1.5">
+                  <Bot className="w-3.5 h-3.5 text-emerald-500" />
+                  <span>Choose Pre-Configured Digital Mascot Avatar</span>
                 </label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
+                  {DIGITAL_AVATAR_PRESETS.map((preset) => (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      onClick={() => {
+                        setFormData({ ...formData, avatarUrl: preset.url });
+                      }}
+                      className={`flex items-center gap-2.5 p-2 rounded-xl border text-left transition-all ${
+                        formData.avatarUrl === preset.url
+                          ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/40 shadow-xs ring-1 ring-emerald-500'
+                          : 'border-slate-200 dark:border-zinc-800 hover:border-slate-300 dark:hover:border-zinc-700 bg-white dark:bg-zinc-900'
+                      }`}
+                    >
+                      <div className="w-8 h-8 rounded-lg overflow-hidden relative shrink-0 bg-slate-900 border border-slate-200 dark:border-zinc-800">
+                        <Image
+                          src={preset.url}
+                          alt={preset.label}
+                          fill
+                          sizes="32px"
+                          unoptimized
+                          className="object-cover"
+                        />
+                      </div>
+                      <span className="text-xs font-medium text-slate-700 dark:text-zinc-200 truncate">
+                        {preset.label}
+                      </span>
+                    </button>
+                  ))}
+                </div>
                 <input
                   type="url"
                   value={formData.avatarUrl || ''}
                   onChange={(e) => setFormData({ ...formData, avatarUrl: e.target.value })}
-                  placeholder="https://example.com/my-photo.jpg"
+                  placeholder="Or custom Digital Avatar SVG URL (e.g. https://api.dicebear.com/...)"
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500 font-mono"
                 />
               </div>
+
+              {/* SECTION B: REAL PROFILE PHOTOS */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-2 flex items-center gap-1.5">
+                  <ImageIcon className="w-3.5 h-3.5 text-sky-500" />
+                  <span>Choose Pre-Configured Real Engineer Portrait</span>
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-3">
+                  {PHOTO_PRESETS.map((preset) => (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      onClick={() => {
+                        setFormData({ ...formData, photoUrl: preset.url });
+                      }}
+                      className={`flex items-center gap-2.5 p-2 rounded-xl border text-left transition-all ${
+                        formData.photoUrl === preset.url
+                          ? 'border-sky-500 bg-sky-50/50 dark:bg-sky-950/40 shadow-xs ring-1 ring-sky-500'
+                          : 'border-slate-200 dark:border-zinc-800 hover:border-slate-300 dark:hover:border-zinc-700 bg-white dark:bg-zinc-900'
+                      }`}
+                    >
+                      <div className="w-8 h-8 rounded-lg overflow-hidden relative shrink-0 border border-slate-200 dark:border-zinc-800">
+                        <Image
+                          src={preset.url}
+                          alt={preset.label}
+                          fill
+                          sizes="32px"
+                          unoptimized
+                          className="object-cover"
+                        />
+                      </div>
+                      <span className="text-xs font-medium text-slate-700 dark:text-zinc-200 truncate">
+                        {preset.label}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+                <input
+                  type="url"
+                  value={formData.photoUrl || ''}
+                  onChange={(e) => setFormData({ ...formData, photoUrl: e.target.value })}
+                  placeholder="Or custom Real Profile Photo URL (e.g. https://images.unsplash.com/...)"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500 font-mono"
+                />
+              </div>
+
+              {/* SECTION C: BANNER COVER ART */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-2 flex items-center gap-1.5">
+                  <SlidersHorizontal className="w-3.5 h-3.5 text-indigo-500" />
+                  <span>Choose Cover Banner Art</span>
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
+                  {BANNER_PRESETS.map((banner) => (
+                    <button
+                      key={banner.id}
+                      type="button"
+                      onClick={() => setFormData({ ...formData, bannerUrl: banner.url })}
+                      className={`p-2 rounded-xl border text-center transition-all ${
+                        formData.bannerUrl === banner.url
+                          ? 'border-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/40 shadow-xs ring-1 ring-indigo-500'
+                          : 'border-slate-200 dark:border-zinc-800 hover:border-slate-300 dark:hover:border-zinc-700 bg-white dark:bg-zinc-900'
+                      }`}
+                    >
+                      <div className="w-full h-10 rounded-lg overflow-hidden relative mb-1.5 border border-slate-200 dark:border-zinc-800">
+                        <Image
+                          src={banner.url}
+                          alt={banner.label}
+                          fill
+                          sizes="100px"
+                          unoptimized
+                          className="object-cover"
+                        />
+                      </div>
+                      <span className="text-[11px] font-medium text-slate-700 dark:text-zinc-300">
+                        {banner.label}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
             </div>
 
-            {/* Core Identification Fields */}
+            {/* Core Identification Fields (Editable: Name, Username, Pronouns, Headline, Bio) */}
             <div className="p-6 rounded-2xl border border-slate-200/80 dark:border-white/[0.08] bg-white/70 dark:bg-[#0B0D13]/85 backdrop-blur-2xl shadow-sm space-y-4">
-              <h2 className="text-sm font-semibold text-slate-900 dark:text-white">
-                Personal & Professional Identity
+              <h2 className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                <User className="w-4 h-4 text-sky-500" />
+                <span>Personal &amp; Professional Identity</span>
               </h2>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -598,14 +915,19 @@ function ProfilePageInner() {
                   <label className="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-1.5">
                     Username / Handle *
                   </label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.username}
-                    onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                    placeholder="johndoe"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500 font-mono"
-                  />
+                  <div className="relative">
+                    <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-xs text-slate-400 font-mono">
+                      @
+                    </span>
+                    <input
+                      type="text"
+                      required
+                      value={formData.username}
+                      onChange={(e) => setFormData({ ...formData, username: e.target.value.replace(/[^a-zA-Z0-9_-]/g, '') })}
+                      placeholder="johndoe"
+                      className="w-full pl-7 pr-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500 font-mono"
+                    />
+                  </div>
                 </div>
 
                 <div>
@@ -638,7 +960,7 @@ function ProfilePageInner() {
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-1.5">
-                  Engineering Bio & Experience Summary
+                  Engineering Bio &amp; Experience Summary
                 </label>
                 <textarea
                   rows={4}
@@ -677,9 +999,55 @@ function ProfilePageInner() {
                 </div>
               </div>
 
+              {/* STRICT RULE IMPLEMENTATION: Organizational Team Member Role Field */}
+              {profile.role === 'team' && (
+                <div className="p-4 rounded-xl border border-amber-500/30 bg-amber-500/5">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-semibold text-amber-900 dark:text-amber-300 flex items-center gap-1.5">
+                      <Lock className="w-3.5 h-3.5 text-amber-500" />
+                      <span>Organizational Team Role (Uneditable Tag)</span>
+                    </label>
+                    <span className="text-[10px] font-mono text-amber-700 dark:text-amber-400">
+                      Read-Only for Team Members
+                    </span>
+                  </div>
+                  <input
+                    type="text"
+                    disabled
+                    value={formData.teamRole || 'Platform SRE Lead'}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-100 dark:bg-zinc-950 text-xs text-slate-500 dark:text-zinc-500 cursor-not-allowed font-semibold"
+                  />
+                  <p className="text-[11px] text-slate-500 dark:text-zinc-400 mt-1.5">
+                    🔒 This role tag represents your official standing in the organization. It can only be modified by the Organization Administrator or Team Leader.
+                  </p>
+                </div>
+              )}
+
+              {/* If Admin: Admin can edit their administrative team role */}
+              {profile.role === 'admin' && (
+                <div className="p-4 rounded-xl border border-emerald-500/30 bg-emerald-500/5">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-semibold text-emerald-900 dark:text-emerald-300 flex items-center gap-1.5">
+                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+                      <span>Organization Lead / SPOC Role</span>
+                    </label>
+                    <span className="text-[10px] font-mono text-emerald-700 dark:text-emerald-400">
+                      Editable by Org Admin
+                    </span>
+                  </div>
+                  <input
+                    type="text"
+                    value={formData.teamRole || 'SPOC Admin & Platform Director'}
+                    onChange={(e) => setFormData({ ...formData, teamRole: e.target.value })}
+                    placeholder="Enterprise Platform Director"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-emerald-200 dark:border-emerald-800 bg-white dark:bg-zinc-900 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 font-semibold"
+                  />
+                </div>
+              )}
+
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-1.5">
-                  Technical Skills & Domains (comma separated)
+                  Technical Skills &amp; Domains (comma separated)
                 </label>
                 <input
                   type="text"
@@ -696,8 +1064,9 @@ function ProfilePageInner() {
 
             {/* Social & Professional Links */}
             <div className="p-6 rounded-2xl border border-slate-200/80 dark:border-white/[0.08] bg-white/70 dark:bg-[#0B0D13]/85 backdrop-blur-2xl shadow-sm space-y-4">
-              <h2 className="text-sm font-semibold text-slate-900 dark:text-white">
-                Social Profiles & Accounts
+              <h2 className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                <Globe className="w-4 h-4 text-sky-500" />
+                <span>Social Profiles &amp; Accounts</span>
               </h2>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -772,12 +1141,12 @@ function ProfilePageInner() {
               <button
                 type="submit"
                 disabled={isSaving}
-                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-zinc-950 font-semibold text-xs transition-colors shadow-sm disabled:opacity-60"
+                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-zinc-950 font-semibold text-xs transition-colors shadow-sm disabled:opacity-60 cursor-pointer"
               >
                 {isSaving ? (
                   <>
                     <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                    <span>Saving Profile...</span>
+                    <span>Saving Profile Changes...</span>
                   </>
                 ) : (
                   <>
@@ -799,7 +1168,7 @@ function ProfilePageInner() {
             <div className="p-6 rounded-2xl border border-slate-200/80 dark:border-white/[0.08] bg-white/70 dark:bg-[#0B0D13]/85 backdrop-blur-2xl shadow-sm">
               <h2 className="text-sm font-semibold text-slate-900 dark:text-white mb-1 flex items-center gap-2">
                 <SlidersHorizontal className="w-4 h-4 text-sky-500" />
-                <span>Console Display & Aesthetics</span>
+                <span>Console Display &amp; Aesthetics</span>
               </h2>
               <p className="text-xs text-slate-500 dark:text-zinc-400 mb-6">
                 Customize your visual environment, dark mode glassmorphism, and background interactions.
@@ -902,7 +1271,7 @@ function ProfilePageInner() {
                   />
                   <div>
                     <div className="text-xs font-semibold text-slate-900 dark:text-white">
-                      Advisory & Manual Approval
+                      Advisory &amp; Manual Approval
                     </div>
                     <div className="text-[11px] text-slate-500 dark:text-zinc-400">
                       Emit high-severity alert banners to the console and web dashboard. Containment scripts require one-click operator confirmation before iptables or eBPF drops are applied.
@@ -958,6 +1327,207 @@ function ProfilePageInner() {
         )}
 
       </main>
+
+      {/* INSTANT EDIT PROFILE MODAL: Guarantees clicking "Edit Profile" immediately opens the editor anywhere */}
+      {isEditModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0B0D13] p-6 sm:p-8 shadow-2xl">
+            <div className="flex items-center justify-between pb-4 mb-4 border-b border-slate-100 dark:border-zinc-800">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-xl bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400">
+                  <Edit3 className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                    Edit Profile &amp; Identifiers
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-zinc-400">
+                    Update your photo, digital avatar, handle, pronouns, and bio.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsEditModalOpen(false)}
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveProfile} className="space-y-4">
+              {/* Avatar & Photo Previews */}
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-zinc-900/60 border border-slate-200/80 dark:border-zinc-800 space-y-3">
+                <div className="text-xs font-semibold text-slate-800 dark:text-zinc-200">
+                  Digital Avatar &amp; Portrait Selection
+                </div>
+                
+                <div className="grid grid-cols-4 gap-2">
+                  {DIGITAL_AVATAR_PRESETS.slice(0, 4).map((preset) => (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      onClick={() => setFormData({ ...formData, avatarUrl: preset.url })}
+                      className={`p-1.5 rounded-xl border flex flex-col items-center gap-1 transition-all ${
+                        formData.avatarUrl === preset.url
+                          ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/50'
+                          : 'border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900'
+                      }`}
+                    >
+                      <div className="w-8 h-8 rounded-lg overflow-hidden relative bg-slate-900">
+                        <Image src={preset.url} alt={preset.label} fill sizes="32px" unoptimized className="object-cover" />
+                      </div>
+                      <span className="text-[10px] font-medium truncate w-full text-center text-slate-700 dark:text-zinc-300">
+                        {preset.label}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-1">
+                    Full Name *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-1">
+                    Username / Handle *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.username}
+                    onChange={(e) => setFormData({ ...formData, username: e.target.value.replace(/[^a-zA-Z0-9_-]/g, '') })}
+                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500 font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-1">
+                    Pronouns
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.pronouns || ''}
+                    onChange={(e) => setFormData({ ...formData, pronouns: e.target.value })}
+                    placeholder="they/them"
+                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-1">
+                    Headline
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.headline}
+                    onChange={(e) => setFormData({ ...formData, headline: e.target.value })}
+                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500"
+                  />
+                </div>
+              </div>
+
+              {/* Organizational Team Member Role (Uneditable tag in modal) */}
+              {profile.role === 'team' && (
+                <div className="p-3 rounded-xl border border-amber-500/30 bg-amber-500/5">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-semibold text-amber-900 dark:text-amber-300 flex items-center gap-1.5">
+                      <Lock className="w-3 h-3 text-amber-500" />
+                      <span>Organizational Team Role</span>
+                    </span>
+                    <span className="text-[10px] text-amber-700 dark:text-amber-400 font-mono">
+                      Uneditable by Member
+                    </span>
+                  </div>
+                  <input
+                    type="text"
+                    disabled
+                    value={formData.teamRole || 'Platform SRE Lead'}
+                    className="w-full px-3 py-1.5 rounded-lg border border-slate-200 dark:border-zinc-800 bg-slate-100 dark:bg-zinc-950 text-xs text-slate-500 cursor-not-allowed font-medium"
+                  />
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-1">
+                  Bio
+                </label>
+                <textarea
+                  rows={3}
+                  value={formData.bio}
+                  onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
+                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-1">
+                    Company
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.company || ''}
+                    onChange={(e) => setFormData({ ...formData, company: e.target.value })}
+                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-1">
+                    Location
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.location || ''}
+                    onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-zinc-800">
+                <button
+                  type="button"
+                  onClick={() => setIsEditModalOpen(false)}
+                  className="px-4 py-2 rounded-xl border border-slate-200 dark:border-zinc-800 text-xs font-medium text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-900"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSaving}
+                  className="inline-flex items-center gap-2 px-5 py-2 rounded-xl bg-sky-500 hover:bg-sky-400 text-zinc-950 font-semibold text-xs shadow-sm cursor-pointer disabled:opacity-60"
+                >
+                  {isSaving ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-3.5 h-3.5" />
+                      <span>Save Changes</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

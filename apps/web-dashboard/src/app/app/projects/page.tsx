@@ -150,8 +150,18 @@ export default function IndividualProjectsWorkspacePage() {
     };
 
     initWorkspace();
+
+    const handleProfileUpdate = (e: Event) => {
+      const customEvt = e as CustomEvent<UserProfile | null>;
+      if (customEvt.detail && isMounted) {
+        setUserProfile(customEvt.detail);
+      }
+    };
+    window.addEventListener('autotrace_profile_updated', handleProfileUpdate);
+
     return () => {
       isMounted = false;
+      window.removeEventListener('autotrace_profile_updated', handleProfileUpdate);
     };
   }, []);
 
@@ -252,86 +262,106 @@ export default function IndividualProjectsWorkspacePage() {
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
         
         {/* User Profile Summary Banner */}
-        {userProfile && (
-          <div className="mb-8 p-4 sm:p-5 rounded-2xl border border-slate-200/80 dark:border-white/[0.08] bg-white/70 dark:bg-[#0B0D13]/85 backdrop-blur-2xl shadow-sm dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <Link
-              href="/app/profile"
-              className="flex items-center gap-3.5 group cursor-pointer min-w-0"
-              title="Click to open full profile"
-            >
-              <div className="relative shrink-0">
-                {userProfile.avatarUrl ? (
-                  <Image
-                    src={userProfile.avatarUrl}
-                    alt={userProfile.name}
-                    width={48}
-                    height={48}
-                    className="w-12 h-12 rounded-xl object-cover border border-sky-500/40 shadow-xs group-hover:ring-2 group-hover:ring-sky-500 transition-all"
-                  />
-                ) : (
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-sky-500 to-indigo-600 border border-white/10 shadow-xs flex items-center justify-center text-sm font-bold text-white group-hover:scale-105 transition-transform">
-                    {userProfile.initials}
-                  </div>
-                )}
-                <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-white dark:border-[#0B0D13]" />
-              </div>
-
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2 mb-0.5">
-                  <span className="font-semibold text-sm text-slate-900 dark:text-white truncate group-hover:text-sky-500 transition-colors">
-                    {userProfile.name}
-                  </span>
-                  <span className="text-[11px] text-slate-500 font-mono">
-                    @{userProfile.username || 'developer'}
-                  </span>
-                  <span className="px-1.5 py-0.2 rounded text-[10px] font-medium bg-sky-50 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300 border border-sky-200 dark:border-sky-800">
-                    {userProfile.role === 'admin' ? 'Org Admin' : 'Developer'}
-                  </span>
-                </div>
-                <div className="text-xs text-slate-600 dark:text-zinc-400 line-clamp-1">
-                  {userProfile.headline || 'Distributed Systems & Security Telemetry Engineer'}
-                </div>
-                <div className="flex flex-wrap items-center gap-3 mt-1 text-[11px] text-slate-500 dark:text-zinc-500">
-                  {userProfile.company && (
-                    <span className="flex items-center gap-1">
-                      <Building2 className="w-3 h-3" />
-                      {userProfile.company}
-                    </span>
-                  )}
-                  {userProfile.location && (
-                    <span className="flex items-center gap-1">
-                      <MapPin className="w-3 h-3" />
-                      {userProfile.location}
-                    </span>
-                  )}
-                  {userProfile.githubUsername && (
-                    <span className="flex items-center gap-1 text-slate-700 dark:text-zinc-300">
-                      <Github className="w-3 h-3" />
-                      {userProfile.githubUsername}
-                    </span>
-                  )}
-                </div>
-              </div>
-            </Link>
-
-            <div className="flex items-center gap-2 shrink-0 pt-2 md:pt-0 border-t md:border-t-0 border-slate-100 dark:border-zinc-800">
+        {userProfile && (() => {
+          const displayImg = userProfile.activeDisplayMode === 'photo'
+            ? (userProfile.photoUrl || userProfile.avatarUrl)
+            : (userProfile.avatarUrl || userProfile.photoUrl);
+          return (
+            <div className="mb-8 p-4 sm:p-5 rounded-2xl border border-slate-200/80 dark:border-white/[0.08] bg-white/70 dark:bg-[#0B0D13]/85 backdrop-blur-2xl shadow-sm dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] flex flex-col md:flex-row md:items-center justify-between gap-4">
               <Link
                 href="/app/profile"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900 hover:bg-slate-100 dark:hover:bg-zinc-800 text-xs font-semibold text-slate-700 dark:text-zinc-200 transition-colors shadow-xs"
+                className="flex items-center gap-3.5 group cursor-pointer min-w-0"
+                title="Click to open full profile"
               >
-                <Edit3 className="w-3.5 h-3.5 text-sky-500" />
-                <span>View & Edit Profile</span>
+                <div className="relative shrink-0">
+                  {displayImg ? (
+                    <div className="w-12 h-12 rounded-xl overflow-hidden relative border border-sky-500/40 shadow-xs group-hover:ring-2 group-hover:ring-sky-500 transition-all bg-slate-900">
+                      <Image
+                        src={displayImg}
+                        alt={userProfile.name}
+                        fill
+                        sizes="48px"
+                        unoptimized
+                        className="object-cover"
+                      />
+                    </div>
+                  ) : (
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-sky-500 to-indigo-600 border border-white/10 shadow-xs flex items-center justify-center text-sm font-bold text-white group-hover:scale-105 transition-transform">
+                      {userProfile.initials}
+                    </div>
+                  )}
+                  <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-white dark:border-[#0B0D13]" />
+                </div>
+
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2 mb-0.5">
+                    <span className="font-semibold text-sm text-slate-900 dark:text-white truncate group-hover:text-sky-500 transition-colors">
+                      {userProfile.name}
+                    </span>
+                    <span className="text-[11px] text-slate-500 font-mono">
+                      @{userProfile.username || 'developer'}
+                    </span>
+                    <span className="px-1.5 py-0.2 rounded text-[10px] font-medium bg-sky-50 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300 border border-sky-200 dark:border-sky-800">
+                      {userProfile.role === 'admin' 
+                        ? 'Org Admin' 
+                        : userProfile.role === 'team' 
+                        ? 'Team Member' 
+                        : 'Individual Developer'}
+                    </span>
+                    {userProfile.role === 'team' && userProfile.teamRole && (
+                      <span 
+                        className="px-2 py-0.5 rounded text-[10px] font-semibold bg-indigo-50 text-indigo-700 dark:bg-indigo-950/70 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800"
+                        title="Assigned by Org Admin. Uneditable by team member."
+                      >
+                        🔒 Team: {userProfile.teamRole}
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-xs text-slate-600 dark:text-zinc-400 line-clamp-1">
+                    {userProfile.headline || 'Distributed Systems & Security Telemetry Engineer'}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-3 mt-1 text-[11px] text-slate-500 dark:text-zinc-500">
+                    {userProfile.company && (
+                      <span className="flex items-center gap-1">
+                        <Building2 className="w-3 h-3" />
+                        {userProfile.company}
+                      </span>
+                    )}
+                    {userProfile.location && (
+                      <span className="flex items-center gap-1">
+                        <MapPin className="w-3 h-3" />
+                        {userProfile.location}
+                      </span>
+                    )}
+                    {userProfile.githubUsername && (
+                      <span className="flex items-center gap-1 text-slate-700 dark:text-zinc-300">
+                        <Github className="w-3 h-3" />
+                        {userProfile.githubUsername}
+                      </span>
+                    )}
+                  </div>
+                </div>
               </Link>
-              <Link
-                href="/app/profile?tab=settings"
-                className="p-1.5 rounded-lg border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900 hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-600 dark:text-zinc-400 transition-colors shadow-xs"
-                title="Profile & Dashboard Settings"
-              >
-                <SlidersHorizontal className="w-3.5 h-3.5" />
-              </Link>
+
+              <div className="flex items-center gap-2 shrink-0 pt-2 md:pt-0 border-t md:border-t-0 border-slate-100 dark:border-zinc-800">
+                <Link
+                  href="/app/profile?tab=edit"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900 hover:bg-slate-100 dark:hover:bg-zinc-800 text-xs font-semibold text-slate-700 dark:text-zinc-200 transition-colors shadow-xs"
+                >
+                  <Edit3 className="w-3.5 h-3.5 text-sky-500" />
+                  <span>Edit Profile</span>
+                </Link>
+                <Link
+                  href="/app/profile?tab=settings"
+                  className="p-1.5 rounded-lg border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900 hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-600 dark:text-zinc-400 transition-colors shadow-xs"
+                  title="Profile & Dashboard Settings"
+                >
+                  <SlidersHorizontal className="w-3.5 h-3.5" />
+                </Link>
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Workspace Title & Actions */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">

@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 import { SocialAuthButtons } from '@/components/auth/SocialAuthButtons';
 import { AutoTraceLogo } from '@/components/navigation/AutoTraceLogo';
-import { setActiveUserProfile, AVATAR_PRESETS } from '@/lib/userProfile';
+import { setActiveUserProfile, DIGITAL_AVATAR_PRESETS, PHOTO_PRESETS } from '@/lib/userProfile';
 
 function safeFormatError(err: string | null): string {
   if (!err) return '';
@@ -58,7 +58,9 @@ function RegisterContent() {
     githubUsername: '',
     linkedinUrl: '',
     websiteUrl: '',
-    avatarUrl: AVATAR_PRESETS[0].url,
+    avatarUrl: DIGITAL_AVATAR_PRESETS[0].url,
+    photoUrl: PHOTO_PRESETS[0].url,
+    activeDisplayMode: 'avatar' as 'photo' | 'avatar',
   });
 
   const [orgForm, setOrgForm] = useState({
@@ -85,7 +87,9 @@ function RegisterContent() {
       name: individualForm.name,
       username: individualForm.username,
       email: individualForm.email,
+      photoUrl: individualForm.photoUrl || null,
       avatarUrl: individualForm.avatarUrl || null,
+      activeDisplayMode: individualForm.activeDisplayMode,
       headline: individualForm.headline || 'Cloud & Security Telemetry Engineer',
       bio: individualForm.bio || 'Distributed systems engineer focused on autonomous security telemetry and observability.',
       company: individualForm.company || '',
@@ -306,27 +310,34 @@ function RegisterContent() {
                     {/* Avatar Preset Selection */}
                     <div>
                       <label className="block text-[11px] font-medium text-slate-600 dark:text-zinc-400 mb-1.5">
-                        Choose Profile Avatar
+                        Choose Digital Mascot Avatar or Portrait Photo
                       </label>
                       <div className="flex flex-wrap items-center gap-2">
-                        {AVATAR_PRESETS.map((preset) => (
+                        {DIGITAL_AVATAR_PRESETS.slice(0, 6).map((preset) => (
                           <button
                             key={preset.id}
                             type="button"
-                            onClick={() => setIndividualForm({ ...individualForm, avatarUrl: preset.url })}
+                            onClick={() => setIndividualForm({ 
+                              ...individualForm, 
+                              avatarUrl: preset.url,
+                              activeDisplayMode: 'avatar'
+                            })}
                             className={`flex items-center gap-1.5 p-1 pr-2.5 rounded-lg border transition-all ${
                               individualForm.avatarUrl === preset.url
-                                ? 'border-sky-500 bg-sky-50 dark:bg-sky-950/40 shadow-xs'
+                                ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/40 shadow-xs ring-1 ring-emerald-500'
                                 : 'border-slate-200 dark:border-zinc-800 hover:border-slate-300'
                             }`}
                           >
-                            <Image
-                              src={preset.url}
-                              alt={preset.label}
-                              width={24}
-                              height={24}
-                              className="w-6 h-6 rounded-md object-cover"
-                            />
+                            <div className="w-6 h-6 rounded-md overflow-hidden relative bg-slate-900 shrink-0">
+                              <Image
+                                src={preset.url}
+                                alt={preset.label}
+                                fill
+                                sizes="24px"
+                                unoptimized
+                                className="object-cover"
+                              />
+                            </div>
                             <span className="text-[11px] font-medium text-slate-700 dark:text-zinc-300">
                               {preset.label}
                             </span>
